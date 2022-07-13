@@ -1,5 +1,5 @@
 #!/bin/bash
-source BP-BASE-SHELL-STEPS/functions.sh
+source functions.sh
 
 echo "I'll build the code"
 sleep  $SLEEP_DURATION
