@@ -1,7 +1,9 @@
 FROM maven:3.3-jdk-8
 
-RUN apt-get update || true
-RUN apt-get install jq 
+RUN apt-get -y install debian-keyring debian-archive-keyring || true
+RUN apt-key update || true
+RUN apt-get -y update || true
+RUN apt-get -y install jq 
 
 ENV SLEEP_DURATION 5s
 ENV INSTRUCTION pacakge
