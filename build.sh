@@ -1,18 +1,15 @@
 #!/bin/bash
-source functions.sh
+source /opt/buildpiper/shell-functions/functions.sh
+source /opt/buildpiper/shell-functions/log-functions.sh
 
-echo "I'll build the code available at [$WORKSPACE] and have mounted at [$CODEBASE_DIR]"
+CODEBASE_LOCATION="${WORKSPACE}"/"${CODEBASE_DIR}"
+logInfoMessage "I'll build the code available at [$CODEBASE_LOCATION]"
 sleep  $SLEEP_DURATION
 
-cd  $WORKSPACE/${CODEBASE_DIR}
+cd  "${CODEBASE_LOCATION}"
 mvn $INSTRUCTION
-if [ $? -eq 0 ]
-then
-  generateOutput mvn_execute true "Congratulations build succeeded!!!"
-  echo "build sucessfull"
-elif  [ $? != 0 ]
-then 
-  generateOutput mvn_execute false "Build failed please check!!!!!"
-  echo "build unsucessfull"
-  exit 1
-fi
+
+TASK_STATUS=$?
+
+saveTaskStatus ${TASK_STATUS} ${ACTIVITY_SUB_TASK_CODE}
+
