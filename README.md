@@ -10,5 +10,5 @@ I'll use maven to build the java project
 ```
 git submodule init
 git submodule update
-docker build -t ot/workspace-publisher:0.1 .
+docker build -t ot/mvn-execute-step:0.2 .
 ```
