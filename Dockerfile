@@ -1,4 +1,4 @@
-FROM maven:3.3-jdk-8
+FROM maven:3.6.3-openjdk-17
 
 RUN apt-get -y  --force-yes install debian-keyring debian-archive-keyring || true
 RUN apt-key update || true
