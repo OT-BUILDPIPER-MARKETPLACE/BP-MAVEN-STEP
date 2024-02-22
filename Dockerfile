@@ -1,4 +1,4 @@
-FROM maven:3.3-jdk-8
+FROM 3.6.3-openjdk-11
 
 RUN apt-get update || true
 RUN apt-get install jq 
