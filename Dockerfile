@@ -1,9 +1,10 @@
-FROM maven:3.6.3-openjdk-17
+FROM maven:3.8-openjdk-17
 
-RUN apt-get -y  --force-yes install debian-keyring debian-archive-keyring || true
-RUN apt-key update || true
-RUN apt-get -y update || true
-RUN apt-get -y --force-yes install jq 
+# Step 2: Update system
+RUN microdnf -y update || true
+
+# Step 3: Install jq without --force-yes
+RUN microdnf -y install jq
 
 ENV SLEEP_DURATION 5s
 ENV INSTRUCTION package
