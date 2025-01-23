@@ -8,7 +8,7 @@ display_usage() {
   echo "# Usage:"
   echo "# Set the following environment variables to control the versions:"
   echo "#"
-  echo "# - JAVA_VERSION: Choose from 8, 11, or 17 (default: 8)"
+  echo "# - JAVA_VERSION: Choose from 8, 11, 17, or 21 (default: 8)"
   echo "#   Example: JAVA_VERSION=11"
   echo "#"
   echo "# - MAVEN_VERSION: Choose from 3.6.3, 3.8.1, or 3.5.4 (default: 3.6.3)"
@@ -24,7 +24,7 @@ JAVA_VERSION=${JAVA_VERSION:-8}
 MAVEN_VERSION=${MAVEN_VERSION:-3.6.3}
 
 # Check for unsupported JAVA_VERSION
-if [ "$JAVA_VERSION" != "8" ] && [ "$JAVA_VERSION" != "11" ] && [ "$JAVA_VERSION" != "17" ]; then
+if [ "$JAVA_VERSION" != "8" ] && [ "$JAVA_VERSION" != "11" ] && [ "$JAVA_VERSION" != "17" ] && [ "$JAVA_VERSION" != "21" ]; then
   echo "Error: Unsupported JAVA_VERSION: $JAVA_VERSION"
   display_usage
   exit 1
@@ -50,6 +50,8 @@ elif [ "$JAVA_VERSION" == "11" ]; then
   export JAVA_HOME=$JAVA_HOME_11
 elif [ "$JAVA_VERSION" == "17" ]; then
   export JAVA_HOME=$JAVA_HOME_17
+elif [ "$JAVA_VERSION" == "21" ]; then
+  export JAVA_HOME=$JAVA_HOME_21
 fi
 
 # Switch Maven version

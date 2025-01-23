@@ -10,6 +10,7 @@ RUN mkdir -p /opt/jdk
 RUN wget -qO- https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.12+7/OpenJDK11U-jdk_x64_linux_hotspot_11.0.12_7.tar.gz | tar xvz -C /opt/jdk
 RUN wget -qO- https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.2+8/OpenJDK17U-jdk_x64_linux_hotspot_17.0.2_8.tar.gz | tar xvz -C /opt/jdk
 RUN wget -qO- https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u312-b07/OpenJDK8U-jdk_x64_linux_hotspot_8u312b07.tar.gz | tar xvz -C /opt/jdk
+RUN wget -qO- https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21+35/OpenJDK21U-jdk_x64_linux_hotspot_21_35.tar.gz | tar xvz -C /opt/jdk
 
 # Install multiple versions of Maven
 RUN mkdir -p /opt/maven
@@ -22,6 +23,7 @@ ENV JAVA_VERSION ""
 ENV JAVA_HOME_8 /opt/jdk/jdk8u312-b07
 ENV JAVA_HOME_11 /opt/jdk/jdk-11.0.12+7
 ENV JAVA_HOME_17 /opt/jdk/jdk-17.0.2+8
+ENV JAVA_HOME_21 /opt/jdk/jdk-21+35
 
 # Set environment variables for Maven installations
 ENV MAVEN_VERSION ""
@@ -30,7 +32,7 @@ ENV MAVEN_HOME_381 /opt/maven/apache-maven-3.8.1
 ENV MAVEN_HOME_354 /opt/maven/apache-maven-3.5.4
 
 # Add Maven binaries to PATH
-ENV PATH $JAVA_HOME_8/bin:$MAVEN_HOME_363/bin:$JAVA_HOME_11/bin:$MAVEN_HOME_381/bin:$JAVA_HOME_17/bin:$MAVEN_HOME_354/bin:$PATH
+ENV PATH $JAVA_HOME_8/bin:$MAVEN_HOME_363/bin:$JAVA_HOME_11/bin:$MAVEN_HOME_381/bin:$JAVA_HOME_17/bin:$JAVA_HOME_354/bin:$JAVA_HOME_21/bin:$PATH
 
 # Copy the script to switch JDK and Maven versions
 COPY switch_versions.sh /usr/local/bin/switch_versions.sh
