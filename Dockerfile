@@ -1,4 +1,4 @@
-FROM mukulmj/custom-ubuntu-java-maven:2.0.3
+FROM registry.buildpiper.in/base-image/java-maven:2.0.5
 
 RUN apt-get update && apt-get install -y \
     libxml2-utils \
@@ -11,6 +11,11 @@ RUN apt-get update && apt-get install -y \
 
 # Set up NVM environment variable
 ENV NVM_DIR="/root/.nvm"
+
+RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && \
+    unzip awscliv2.zip && \
+    ./aws/install && \
+    rm -rf awscliv2.zip aws
 
 # Install NVM, Node.js v14.21.3, and a compatible version of pnpm
 RUN curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash && \
@@ -36,7 +41,7 @@ ENV SOURCE_JSON_FILE mavenrepos.json
 
 ENV VALIDATION_FAILURE_ACTION WARNING    
 ENV ACTIVITY_SUB_TASK_CODE MVN_EXECUTE
-ENTRYPOINT [ "./build.sh" ]
+ENTRYPOINT [ "/usr/local/bin/switch_versions.sh", "./build.sh" ]
 
 # Default command
 CMD ["bash"]
