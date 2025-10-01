@@ -54,6 +54,19 @@ if [ -z "$INSTRUCTION" ]; then
     TASK_STATUS=$?
 fi
 
+# Custom logic to handle for Indepay
+if [[ -n "$DOMAIN" && -n "$DOMAIN_OWNER" && -n "$REGION" ]]; then
+  export CODEARTIFACT_AUTH_TOKEN=$(aws codeartifact get-authorization-token \
+    --domain "$DOMAIN" \
+    --domain-owner "$DOMAIN_OWNER" \
+    --region "$REGION" \
+    --query authorizationToken \
+    --output text)
+else
+  echo "Required environment variables (DOMAIN, DOMAIN_OWNER, REGION) are not set. Skipping token export."
+fi
+
+
 # Execute the Maven command
 logInfoMessage "Executing mvn $INSTRUCTION $MAVEN_OPTIONS"
 mvn $INSTRUCTION $MAVEN_OPTIONS
