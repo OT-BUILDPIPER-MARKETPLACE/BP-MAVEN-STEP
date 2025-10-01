@@ -9,9 +9,9 @@ RUN apt-get update && apt-get install -y \
     coreutils \
     bash
 # Create buildpiper user and group
-RUN addgroup --gid 1001 buildpiper && \
-    adduser --disabled-password --gecos "" --uid 1001 --gid 1001 --home /home/buildpiper buildpiper && \
-    mkdir -p /home/buildpiper && \
+
+RUN groupadd -g 65522 buildpiper && \
+    useradd -u 65522 -g buildpiper -d /home/buildpiper -m buildpiper && \
     chown -R buildpiper:buildpiper /home/buildpiper
     
 RUN mkdir -p /home/buildpiper/.m2 && \
