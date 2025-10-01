@@ -4,7 +4,6 @@ source /opt/buildpiper/shell-functions/log-functions.sh
 source getDynamicVars.sh
 source set_npmrc.sh
 
-
 TASK_STATUS=0
 
 ACTIVITY_SUB_TASK_CODE="MVN_EXECUTE_${INSTRUCTION_TYPE}"
