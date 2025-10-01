@@ -8,7 +8,6 @@ RUN apt-get update && apt-get install -y \
     gawk \
     coreutils \
     bash
-# Create buildpiper user and group
 
 RUN groupadd -g 65522 buildpiper && \
     useradd -u 65522 -g buildpiper -d /home/buildpiper -m buildpiper && \
@@ -17,7 +16,7 @@ RUN groupadd -g 65522 buildpiper && \
 RUN mkdir -p /home/buildpiper/.m2 && \
     chown -R buildpiper:buildpiper /home/buildpiper/.m2
 
-# Set working directory
+
 WORKDIR /home/buildpiper
 
 # Set up NVM environment variable
