@@ -22,6 +22,11 @@ WORKDIR /home/buildpiper
 # Set up NVM environment variable
 ENV NVM_DIR="/root/.nvm"
 
+RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && \
+    unzip awscliv2.zip && \
+    ./aws/install && \
+    rm -rf awscliv2.zip aws
+
 # Install NVM, Node.js v14.21.3, and a compatible version of pnpm
 RUN curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash && \
     bash -c "source $NVM_DIR/nvm.sh && nvm install v14.21.3 && nvm use v14.21.3 && npm install -g pnpm@7" && \
