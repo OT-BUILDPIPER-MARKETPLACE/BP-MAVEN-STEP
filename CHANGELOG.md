@@ -252,3 +252,38 @@ Here’s the updated change log for version `2.5.2.3` incorporating your additio
 * Backward compatible with all previous tags.
 * No configuration changes required.
 * Works seamlessly with both legacy and new pipeline configurations.
+
+---
+
+**Tag:** `2.5.2.8-nr`
+**Release Date:** *2025-10-30*
+**Maintainer:** *[Mukul Joshi](mukul.joshi@opstree.com), [GitHub](https://github.com/mukulmj)*
+
+### 🔄 Changes
+
+* **[NEW]** Added failure threshold control for test reports
+  * Supports both XML (surefire) and HTML custom test reports
+  * Configurable `TEST_FAILURE_THRESHOLD` (default: 50%)
+  * Handles both Maven surefire XML reports and custom HTML reports
+
+* **[ENHANCED]** Test report parsing improvements:
+  * XML parsing for surefire reports using standard Maven output
+  * HTML parsing using `xmllint` for custom test result formats
+  * Supports dynamic report paths via `TEST_RESULT_DIR`
+
+* **[IMPROVED]** Build failure conditions:
+  * Fails build if test failure rate exceeds threshold
+  * Copies test reports to execution directory for archival
+  * Provides detailed failure statistics in build logs
+
+### ✅ Impact
+
+* Better control over test quality gates in CI/CD pipelines
+* More flexible test report handling for different testing frameworks
+* Improved visibility into test failures and their impact on builds
+
+### 📌 Notes
+
+* Backward compatible with previous versions
+* Requires `libxml2-utils` for HTML report parsing
+* Set `ENABLE_CUSTOM_HTML_SCAN=true` to enable HTML report parsing
