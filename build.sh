@@ -65,6 +65,12 @@ else
   echo "Required environment variables (DOMAIN, DOMAIN_OWNER, REGION) are not set. Skipping token export."
 fi
 
+if [[ -n "$EXTRA_COMMAND" ]]; then
+  logInfoMessage "Executing extra command: $EXTRA_COMMAND"
+  eval "$EXTRA_COMMAND"
+else
+  logInfoMessage "No extra command provided. Skipping."
+fi
 
 # Execute the Maven command
 logInfoMessage "Executing mvn $INSTRUCTION $MAVEN_OPTIONS"
