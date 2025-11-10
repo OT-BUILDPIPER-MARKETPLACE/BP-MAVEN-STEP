@@ -2,13 +2,15 @@
 source /opt/buildpiper/shell-functions/functions.sh
 source /opt/buildpiper/shell-functions/log-functions.sh
 
-CODEBASE_LOCATION="${WORKSPACE}"/"${CODEBASE_DIR}"
+CODEBASE_LOCATION="${WORKSPACE}/${CODEBASE_DIR}"
 logInfoMessage "I'll build the code available at [$CODEBASE_LOCATION]"
 sleep $SLEEP_DURATION
 
 cd "${CODEBASE_LOCATION}"
 
-# Determine the appropriate JDK path based on JAVA_VERSION
+#######################################
+# Select JDK Version
+#######################################
 if [ "$JAVA_VERSION" == "8" ]; then
   JDK_PATH="/opt/jdk/jdk8u312-b07"
 elif [ "$JAVA_VERSION" == "11" ]; then
@@ -23,17 +25,40 @@ else
   exit 1
 fi
 
-# Run keytool with the appropriate JDK
-"${JDK_PATH}/bin/keytool" -import -alias jetty -keystore "${JDK_PATH}/lib/security/cacerts" -file ./nexus.cer -storepass changeit -noprompt
+#######################################
+# Select Maven Version
+#######################################
+if [ "$MAVEN_VERSION" == "3.5.4" ]; then
+  MVN_PATH="/opt/maven/apache-maven-3.5.4"
+elif [ "$MAVEN_VERSION" == "3.6.3" ]; then
+  MVN_PATH="/opt/maven/apache-maven-3.6.3"
+elif [ "$MAVEN_VERSION" == "3.8.1" ]; then
+  MVN_PATH="/opt/maven/apache-maven-3.8.1"
+else
+  logErrorMessage "Unsupported MAVEN_VERSION: $MAVEN_VERSION. Please set MAVEN_VERSION to 3.5.4, 3.6.3, or 3.8.1."
+  saveTaskStatus 1 ${ACTIVITY_SUB_TASK_CODE}
+  exit 1
+fi
+
+#######################################
+# Import cert using selected JDK
+#######################################
+"${JDK_PATH}/bin/keytool" -import -alias jetty -keystore "${JDK_PATH}/lib/security/cacerts" \
+  -file ./nexus.cer -storepass changeit -noprompt
+
 if [ $? -ne 0 ]; then
   logErrorMessage "Keytool command failed for JAVA_VERSION: $JAVA_VERSION"
   saveTaskStatus 1 ${ACTIVITY_SUB_TASK_CODE}
   exit 1
 fi
 
-# Run Maven with the specified instruction
-mvn $INSTRUCTION
+#######################################
+# Execute Maven build
+#######################################
+"${MVN_PATH}/bin/mvn" $INSTRUCTION
 TASK_STATUS=$?
 
-# Save the task status
+#######################################
+# Save Task Status
+#######################################
 saveTaskStatus ${TASK_STATUS} ${ACTIVITY_SUB_TASK_CODE}
