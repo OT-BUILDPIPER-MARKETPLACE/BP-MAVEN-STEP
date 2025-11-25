@@ -1,174 +1,131 @@
 #!/bin/bash
+set -euo pipefail
+
+# ================================================================
+# Load BP Functions
+# ================================================================
 source /opt/buildpiper/shell-functions/functions.sh
 source /opt/buildpiper/shell-functions/log-functions.sh
-source getDynamicVars.sh
-source set_npmrc.sh
 
-TASK_STATUS=0
+# ================================================================
+# Setup
+# ================================================================
+CODEBASE_LOCATION="${WORKSPACE}/${CODEBASE_DIR}"
 
-ACTIVITY_SUB_TASK_CODE="MVN_EXECUTE_${INSTRUCTION_TYPE}"
+logInfoMessage "=============================================================="
+logInfoMessage " Starting Maven Executor (Runtime Download Mode)"
+logInfoMessage " Codebase : ${CODEBASE_LOCATION}"
+logInfoMessage " Instruction : ${INSTRUCTION}"
+logInfoMessage " JAVA_VERSION : ${JAVA_VERSION}"
+logInfoMessage " MAVEN_VERSION : ${MAVEN_VERSION}"
+logInfoMessage "=============================================================="
 
-# Set the codebase location
-CODEBASE_LOCATION="${WORKSPACE}"/"${CODEBASE_DIR}"
-logInfoMessage "I'll $INSTRUCTION_TYPE the code available at [$CODEBASE_LOCATION]"
-sleep  $SLEEP_DURATION
+mkdir -p "${CODEBASE_LOCATION}"
+cd "${CODEBASE_LOCATION}"
 
-# saveTaskStatusNew ${TASK_STATUS} ${ACTIVITY_SUB_TASK_CODE} "CODEBASE LOCATION SET" "Codebase path configured successfully"
+# ================================================================
+# Runtime JDK Installer
+# ================================================================
+download_jdk() {
+  local version="$1"
+  local url=""
 
-# Set the npmrc file default location
-set_npmrc
-
-# Change to the codebase directory
-cd "${CODEBASE_LOCATION}" || { logErrorMessage "Failed to change directory to $CODEBASE_LOCATION"; exit 1; }
-
-# Main logic to check conditions and call fetch_service_details
-if [ -n "$SOURCE_VARIABLE_REPO" ]; then
-    # Check if INSTRUCTION is provided
-    if [ -n "$INSTRUCTION" ]; then
-        logInfoMessage "INSTRUCTION is provided. Skipping fetching details from SOURCE_VARIABLE_REPO."
-    else
-        logInfoMessage "Fetching details from $SOURCE_VARIABLE_REPO as INSTRUCTION is not provided."
-        fetch_service_details
-        source /usr/local/bin/switch_versions.sh
-    fi
-
-else
-    logInfoMessage "SOURCE_VARIABLE_REPO is not defined. Skipping fetching details from SOURCE_VARIABLE_REPO."
-    # exit 1
-fi
-
-# Switch maven INSTRUCTION based on INSTRUCTION_TYPE
-if [ -z "$INSTRUCTION" ]; then
-    case "$INSTRUCTION_TYPE" in
-        "BUILD")  export INSTRUCTION=$MAVEN_BUILD_INSTRUCTION ;;
-        "DEPLOY") export INSTRUCTION=$MAVEN_DEPLOY_INSTRUCTION ;;
-        "TEST")   export INSTRUCTION=$MAVEN_TEST_INSTRUCTION ;;
-        "CUSTOM") export INSTRUCTION=$MAVEN_CUSTOM_INSTRUCTION ;;
-        "SONAR_SCAN" ) export INSTRUCTION=$MAVEN_SONAR_SCAN_INSTRUCTION ;;
-        *) logErrorMessage "Unsupported $INSTRUCTION_TYPE: Executing default mvn $INSTRUCTION"
-            ;;
-    esac
-fi
-
-# Ensure INSTRUCTION is set before executing Maven
-if [ -z "$INSTRUCTION" ]; then
-    logErrorMessage "INSTRUCTION is not set. Exiting..."
-    exit 1
-    TASK_STATUS=$?
-fi
-
-# Ensure it's empty if null or not present
-MAVEN_OPTIONS=${MAVEN_OPTIONS:-}
-
-# Determine suffix based on SONAR_TESTING_TYPE
-SONAR_SUFFIX=""
-case "$SONAR_TESTING_TYPE" in
-    Integration)
-        SONAR_SUFFIX="-it"
-        ;;
-    Unit)
-        SONAR_SUFFIX="-ut"
-        ;;
+  case "$version" in
+    "8")
+      url="https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u412-b08/OpenJDK8U-jdk_x64_linux_hotspot_8u412b08.tar.gz"
+      ;;
+    "11")
+      url="https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.25+9/OpenJDK11U-jdk_x64_linux_hotspot_11.0.25_9.tar.gz"
+      ;;
+    "17")
+      url="https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.13+11/OpenJDK17U-jdk_x64_linux_hotspot_17.0.13_11.tar.gz"
+      ;;
+    "21")
+      url="https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.5+11/OpenJDK21U-jdk_x64_linux_hotspot_21.0.5_11.tar.gz"
+      ;;
     *)
-        SONAR_SUFFIX=""
-        ;;
-esac
+      logErrorMessage "Unsupported JAVA_VERSION: $version"
+      saveTaskStatus 1 "${ACTIVITY_SUB_TASK_CODE}"
+      exit 1
+      ;;
+  esac
 
-if [[ "$INSTRUCTION_TYPE" == "SONAR_SCAN" ]]; then
-    logInfoMessage "Executing Sonar Scan for project [$CODEBASE_DIR$SONAR_SUFFIX]"
+  logInfoMessage "Downloading JDK $version ..."
+  rm -rf /opt/jdk/*
+  curl -sSL "$url" | tar -xz -C /opt/jdk
 
-    # Log command safely (hide token)
-    logInfoMessage "mvn $INSTRUCTION $MAVEN_OPTIONS -Dsonar.projectKey=$CODEBASE_DIR$SONAR_SUFFIX -Dsonar.projectName=$CODEBASE_DIR$SONAR_SUFFIX -Dsonar.host.url=$SONAR_URL -Dsonar.login=******"
+  # FIXED: Pick only the real JDK directory
+  JDK_PATH="$(find /opt/jdk -maxdepth 1 -type d -name 'jdk-*' | head -n 1)"
+}
 
-    # Execute actual command
-    mvn $INSTRUCTION $MAVEN_OPTIONS \
-        -Dsonar.projectKey="${CODEBASE_DIR}${SONAR_SUFFIX}" \
-        -Dsonar.projectName="${CODEBASE_DIR}${SONAR_SUFFIX}" \
-        -Dsonar.host.url="$SONAR_URL" \
-        -Dsonar.login="$SONAR_TOKEN"
-else
-    logInfoMessage "Executing mvn $INSTRUCTION $MAVEN_OPTIONS"
-    mvn $INSTRUCTION $MAVEN_OPTIONS
+# ================================================================
+# Runtime Maven Installer
+# ================================================================
+download_maven() {
+  local version="$1"
+  local url=""
+
+  case "$version" in
+    "3.5.4")
+      url="https://archive.apache.org/dist/maven/maven-3/3.5.4/binaries/apache-maven-3.5.4-bin.tar.gz"
+      ;;
+    "3.6.3")
+      url="https://archive.apache.org/dist/maven/maven-3/3.6.3/binaries/apache-maven-3.6.3-bin.tar.gz"
+      ;;
+    "3.8.1")
+      url="https://archive.apache.org/dist/maven/maven-3/3.8.1/binaries/apache-maven-3.8.1-bin.tar.gz"
+      ;;
+    *)
+      logErrorMessage "Unsupported MAVEN_VERSION: $version"
+      saveTaskStatus 1 "${ACTIVITY_SUB_TASK_CODE}"
+      exit 1
+      ;;
+  esac
+
+  logInfoMessage "Downloading Maven $version ..."
+  rm -rf /opt/maven/*
+  curl -sSL "$url" | tar -xz -C /opt/maven
+
+  # FIXED: Pick the correct Maven directory
+  MVN_PATH="$(find /opt/maven -maxdepth 1 -type d -name 'apache-maven-*' | head -n 1)"
+}
+
+# ================================================================
+# Download & configure JDK + Maven
+# ================================================================
+download_jdk "${JAVA_VERSION}"
+download_maven "${MAVEN_VERSION}"
+
+export JAVA_HOME="${JDK_PATH}"
+export MAVEN_HOME="${MVN_PATH}"
+export PATH="${JAVA_HOME}/bin:${MAVEN_HOME}/bin:${PATH}"
+
+logInfoMessage "JAVA_HOME = ${JAVA_HOME}"
+logInfoMessage "MAVEN_HOME = ${MAVEN_HOME}"
+
+# ================================================================
+# Import certificate if exists
+# ================================================================
+CERT_PATH="./nexus.cer"
+
+if [[ -f "${CERT_PATH}" ]]; then
+    logInfoMessage "Importing Nexus cert..."
+    keytool -import -alias jetty \
+        -keystore "${JAVA_HOME}/lib/security/cacerts" \
+        -file "${CERT_PATH}" \
+        -storepass changeit -noprompt || true
 fi
 
+# ================================================================
+# Execute Maven Build
+# ================================================================
+logInfoMessage "Running mvn ${INSTRUCTION}"
+
+"${MAVEN_HOME}/bin/mvn" ${INSTRUCTION}
 TASK_STATUS=$?
 
-# Save the task status
+logInfoMessage "Build finished with status ${TASK_STATUS}"
+
 saveTaskStatus ${TASK_STATUS} ${ACTIVITY_SUB_TASK_CODE}
-# saveTaskStatusNew ${TASK_STATUS} ${ACTIVITY_SUB_TASK_CODE} "Executed mvn command" "Executed mvn $INSTRUCTION $MAVEN_OPTIONS"
+exit ${TASK_STATUS}
 
-
-# Default XML scan (always runs for TEST)
-if [[ "$INSTRUCTION_TYPE" == "TEST" ]]; then
-    REPORTS=$(find target/surefire-reports/ -name "TEST-*.xml" 2>/dev/null)
-    TOTAL=0
-    FAIL=0
-    for REPORT in $REPORTS; do
-        T=$(grep -oP '(?<=tests=")[0-9]+' "$REPORT" | awk '{s+=$1} END {print s}')
-        F=$(grep -oP '(?<=failures=")[0-9]+' "$REPORT" | awk '{s+=$1} END {print s}')
-        E=$(grep -oP '(?<=errors=")[0-9]+' "$REPORT" | awk '{s+=$1} END {print s}')
-        TOTAL=$((TOTAL + T))
-        FAIL=$((FAIL + F + E))
-    done
-    if [[ "$TOTAL" -eq 0 ]]; then
-        logErrorMessage "No tests found or unable to parse test report."
-        exit 1
-    fi
-    FAIL_PERCENT=$(( 100 * FAIL / TOTAL ))
-    THRESHOLD="${TEST_FAILURE_THRESHOLD:-50}"
-    logInfoMessage "Updating surefire-reports in /bp/execution_dir/${GLOBAL_TASK_ID}......."
-    cp -rf target/surefire-reports /bp/execution_dir/${GLOBAL_TASK_ID}/
-    echo "Test failure rate: $FAIL_PERCENT% (Threshold: $THRESHOLD%)"
-    if (( FAIL_PERCENT > THRESHOLD )); then
-        logErrorMessage "Test failure rate ($FAIL_PERCENT%) exceeded threshold ($THRESHOLD%). Failing build."
-        logInfoMessage "Updating target/surefire-reports in /bp/execution_dir/${GLOBAL_TASK_ID}......."
-        cp -rf target/surefire-reports /bp/execution_dir/${GLOBAL_TASK_ID}/
-        TASK_STATUS=1
-    fi
-    saveTaskStatus ${TASK_STATUS} ${ACTIVITY_SUB_TASK_CODE}
-    # saveTaskStatusNew ${TASK_STATUS} ${ACTIVITY_SUB_TASK_CODE} "Analyzed mvn test reports" "Executed mvn $INSTRUCTION $MAVEN_OPTIONS" 
-fi
-
-# Custom HTML scan (only runs if ENABLE_CUSTOM_HTML_SCAN is true)
-if [[ "$INSTRUCTION_TYPE" == "TEST" && "${ENABLE_CUSTOM_HTML_SCAN,,}" == "true" ]]; then
-    echo "CODEBASE_LOCATION is: $CODEBASE_LOCATION"
-    TEST_RESULT_DIR="${TEST_RESULT_DIR:-Results}"
-    echo "Custom HTML scan enabled. Checking for HTML reports in $TEST_RESULT_DIR"
-    
-    ls -l "$TEST_RESULT_DIR"
-
-    REPORT_HTML=$(find "$TEST_RESULT_DIR" -type f -name "*.html" -printf "%T@ %p\n" | sort -nr | head -1 | awk '{print $2}')
-    THRESHOLD="${TEST_FAILURE_THRESHOLD:-50}"
-
-    if [[ -z "$REPORT_HTML" || ! -f "$REPORT_HTML" ]]; then
-        logErrorMessage "Could not find any HTML report file under $TEST_RESULT_DIR"
-        exit 1
-    fi
-
-    echo "Using report file: $REPORT_HTML"
-
-    TOTAL=$(xmllint --html --xpath "string(//tr[td[contains(., 'Total Tests executed')]]/td[2])" "$REPORT_HTML" 2>/dev/null)
-    PASS=$(xmllint --html --xpath "string(//tr[td[contains(., 'Total Pass Test count')]]/td[2])" "$REPORT_HTML" 2>/dev/null)
-    FAIL=$(xmllint --html --xpath "string(//tr[td[contains(., 'Total Fail Test count')]]/td[2])" "$REPORT_HTML" 2>/dev/null)
-
-    FAIL_PERCENT=$(( 100 * FAIL / TOTAL ))
-
-    echo "Total Tests executed : $TOTAL"
-    echo "Total Pass Test count: $PASS"
-    echo "Total Fail Test count: $FAIL"
-    echo "Test failure rate    : $FAIL_PERCENT% (Threshold: $THRESHOLD%)"
-
-    if (( FAIL_PERCENT > THRESHOLD )); then
-        logErrorMessage "Test failure rate ($FAIL_PERCENT%) exceeded threshold ($THRESHOLD%). Failing build."
-        logInfoMessage "Updating Results in /bp/execution_dir/${GLOBAL_TASK_ID}......."
-        cp -rf $TEST_RESULT_DIR /bp/execution_dir/${GLOBAL_TASK_ID}/
-        TASK_STATUS=1
-    else
-        echo "✅ Test failure rate is within threshold."
-        logInfoMessage "Updating Results in /bp/execution_dir/${GLOBAL_TASK_ID}......."
-        cp -rf $TEST_RESULT_DIR /bp/execution_dir/${GLOBAL_TASK_ID}/
-        TASK_STATUS=0
-    fi
-    saveTaskStatus ${TASK_STATUS} ${ACTIVITY_SUB_TASK_CODE}
-    # saveTaskStatusNew ${TASK_STATUS} ${ACTIVITY_SUB_TASK_CODE} "Analyzed maven custom test report" "Executed mvn $INSTRUCTION $MAVEN_OPTIONS"
-fi

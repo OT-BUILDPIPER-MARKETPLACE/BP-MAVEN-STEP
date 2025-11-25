@@ -1,41 +1,55 @@
-FROM registry.buildpiper.in/base-image/java-maven:2.0.7
+FROM ubuntu:20.04
 
-RUN apt-get update && apt-get install -y \
-    libxml2-utils \
-    findutils \
-    grep \
-    sed \
-    gawk \
-    coreutils \
-    bash
+ENV DEBIAN_FRONTEND=noninteractive
 
-# Set up NVM environment variable
-ENV NVM_DIR="/root/.nvm"
-ENV INSTRUCTION_TYPE="BUILD"
+# ---------------------------------------------------------------------
+# Install system packages
+# ---------------------------------------------------------------------
+RUN apt-get update && \
+    apt-get install -y curl wget unzip tar git jq bash ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
 
-# Install NVM, Node.js v14.21.3, and a compatible version of pnpm
-RUN curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash && \
-    bash -c "source $NVM_DIR/nvm.sh && nvm install v14.21.3 && nvm use v14.21.3 && npm install -g pnpm@7" && \
-    echo 'export NVM_DIR="/root/.nvm"' >> /root/.bashrc && \
-    echo '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"' >> /root/.bashrc && \
-    echo '[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"' >> /root/.bashrc
+# ---------------------------------------------------------------------
+# Create BuildPiper user + directory structure
+# ---------------------------------------------------------------------
+RUN groupadd -g 65522 buildpiper && \
+    useradd -m -u 65522 -g 65522 -s /bin/bash buildpiper && \
+    mkdir -p \
+      /app \
+      /bp/data \
+      /bp/execution_dir \
+      /bp/workspace \
+      /opt/buildpiper/shell-functions \
+      /opt/buildpiper/data \
+      /src/reports \
+      /home/buildpiper/reports \
+      /usr/local/bin \
+      /opt/jdk \
+      /opt/maven && \
+    chown -R buildpiper:buildpiper /app /bp /opt /home/buildpiper /src /usr/local/bin /tmp
 
-# Verify installation of Node.js and compatible pnpm version
-RUN bash -c "source $NVM_DIR/nvm.sh && node -v && nvm current && pnpm -v"
+# ---------------------------------------------------------------------
+# Environment defaults
+# ---------------------------------------------------------------------
+ENV SLEEP_DURATION=5s
+ENV INSTRUCTION=package
+ENV ACTIVITY_SUB_TASK_CODE=MVN_EXECUTE
 
-# Old Details
-ENV SLEEP_DURATION 5s
+# ---------------------------------------------------------------------
+# Copy BuildPiper shell functions + script
+# ---------------------------------------------------------------------
+WORKDIR /app
 
-COPY build.sh .
-COPY getDynamicVars.sh .
-COPY set_npmrc.sh .
-ADD BP-BASE-SHELL-STEPS /opt/buildpiper/shell-functions/
-RUN chmod +x build.sh set_npmrc.sh getDynamicVars.sh
+COPY --chown=buildpiper:buildpiper build.sh ./build.sh
+COPY --chown=buildpiper:buildpiper BP-BASE-SHELL-STEPS/ /opt/buildpiper/shell-functions/
+COPY --chown=buildpiper:buildpiper BP-BASE-SHELL-STEPS/data /opt/buildpiper/data
 
-ENV ENABLE_MAVEN_SILENT_MODE false
-ENV SOURCE_JSON_FILE mavenrepos.json
-ENV VALIDATION_FAILURE_ACTION WARNING 
-ENV ACTIVITY_SUB_TASK_CODE MVN_EXECUTE
-ENTRYPOINT [ "/usr/local/bin/switch_versions.sh", "./build.sh" ]
+RUN chmod +x /app/build.sh
 
-CMD ["bash"]
+# ---------------------------------------------------------------------
+# Switch to non-root
+# ---------------------------------------------------------------------
+USER buildpiper
+
+ENTRYPOINT ["./build.sh"]
+
