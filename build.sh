@@ -6,6 +6,10 @@ source set_npmrc.sh
 
 TASK_STATUS=0
 
+if [ "$DEBUG" = true ]; then
+  set -x
+fi
+
 ACTIVITY_SUB_TASK_CODE="MVN_EXECUTE_${INSTRUCTION_TYPE}"
 
 # Set the codebase location
@@ -57,6 +61,32 @@ if [ -z "$INSTRUCTION" ]; then
     TASK_STATUS=$?
 fi
 
+if [[ "${CODEARTIFACT}" = "true" ]]; then
+    logInfoMessage "CodeArtifact is enabled. Generating and exporting auth token."
+# Custom logic to handle for codeartifact
+    if [[ -n "$DOMAIN" && -n "$DOMAIN_OWNER" && -n "$REGION" ]]; then
+        export CODEARTIFACT_AUTH_TOKEN=$(aws codeartifact get-authorization-token \
+        --domain "$DOMAIN" \
+        --domain-owner "$DOMAIN_OWNER" \
+        --region "$REGION" \
+        --query authorizationToken \
+        --output text)
+        else
+        logErrorMessage "Required environment variables (DOMAIN, DOMAIN_OWNER, REGION) are not set. Auth token not generated/export."
+        exit 1
+    fi
+    else
+    logInfoMessage "CodeArtifact configuration is not enable. Skipping codeartifact function."
+
+fi
+
+if [[ -n "$EXTRA_COMMAND" ]]; then
+  logInfoMessage "Executing extra command: $EXTRA_COMMAND"
+  eval "$EXTRA_COMMAND"
+else
+  logInfoMessage "No extra command provided. Skipping."
+fi
+
 # Ensure it's empty if null or not present
 MAVEN_OPTIONS=${MAVEN_OPTIONS:-}
 
@@ -92,7 +122,6 @@ else
 fi
 
 TASK_STATUS=$?
-
 # Save the task status
 saveTaskStatus ${TASK_STATUS} ${ACTIVITY_SUB_TASK_CODE}
 # saveTaskStatusNew ${TASK_STATUS} ${ACTIVITY_SUB_TASK_CODE} "Executed mvn command" "Executed mvn $INSTRUCTION $MAVEN_OPTIONS"
@@ -118,7 +147,7 @@ if [[ "$INSTRUCTION_TYPE" == "TEST" ]]; then
     THRESHOLD="${TEST_FAILURE_THRESHOLD:-50}"
     logInfoMessage "Updating surefire-reports in /bp/execution_dir/${GLOBAL_TASK_ID}......."
     cp -rf target/surefire-reports /bp/execution_dir/${GLOBAL_TASK_ID}/
-    echo "Test failure rate: $FAIL_PERCENT% (Threshold: $THRESHOLD%)"
+    logWarnMessage "Test failure rate: $FAIL_PERCENT% (Threshold: $THRESHOLD%)"
     if (( FAIL_PERCENT > THRESHOLD )); then
         logErrorMessage "Test failure rate ($FAIL_PERCENT%) exceeded threshold ($THRESHOLD%). Failing build."
         logInfoMessage "Updating target/surefire-reports in /bp/execution_dir/${GLOBAL_TASK_ID}......."
@@ -131,9 +160,9 @@ fi
 
 # Custom HTML scan (only runs if ENABLE_CUSTOM_HTML_SCAN is true)
 if [[ "$INSTRUCTION_TYPE" == "TEST" && "${ENABLE_CUSTOM_HTML_SCAN,,}" == "true" ]]; then
-    echo "CODEBASE_LOCATION is: $CODEBASE_LOCATION"
+    logInfoMessage "CODEBASE_LOCATION is: $CODEBASE_LOCATION"
     TEST_RESULT_DIR="${TEST_RESULT_DIR:-Results}"
-    echo "Custom HTML scan enabled. Checking for HTML reports in $TEST_RESULT_DIR"
+    logInfoMessage "Custom HTML scan enabled. Checking for HTML reports in $TEST_RESULT_DIR"
     
     ls -l "$TEST_RESULT_DIR"
 
@@ -145,7 +174,7 @@ if [[ "$INSTRUCTION_TYPE" == "TEST" && "${ENABLE_CUSTOM_HTML_SCAN,,}" == "true" 
         exit 1
     fi
 
-    echo "Using report file: $REPORT_HTML"
+    logInfoMessage "Using report file: $REPORT_HTML"
 
     TOTAL=$(xmllint --html --xpath "string(//tr[td[contains(., 'Total Tests executed')]]/td[2])" "$REPORT_HTML" 2>/dev/null)
     PASS=$(xmllint --html --xpath "string(//tr[td[contains(., 'Total Pass Test count')]]/td[2])" "$REPORT_HTML" 2>/dev/null)
@@ -153,10 +182,10 @@ if [[ "$INSTRUCTION_TYPE" == "TEST" && "${ENABLE_CUSTOM_HTML_SCAN,,}" == "true" 
 
     FAIL_PERCENT=$(( 100 * FAIL / TOTAL ))
 
-    echo "Total Tests executed : $TOTAL"
-    echo "Total Pass Test count: $PASS"
-    echo "Total Fail Test count: $FAIL"
-    echo "Test failure rate    : $FAIL_PERCENT% (Threshold: $THRESHOLD%)"
+    logInfoMessage "Total Tests executed : $TOTAL"
+    logInfoMessage "Total Pass Test count: $PASS"
+    logInfoMessage "Total Fail Test count: $FAIL"
+    logInfoMessage "Test failure rate    : $FAIL_PERCENT% (Threshold: $THRESHOLD%)"
 
     if (( FAIL_PERCENT > THRESHOLD )); then
         logErrorMessage "Test failure rate ($FAIL_PERCENT%) exceeded threshold ($THRESHOLD%). Failing build."
@@ -164,7 +193,7 @@ if [[ "$INSTRUCTION_TYPE" == "TEST" && "${ENABLE_CUSTOM_HTML_SCAN,,}" == "true" 
         cp -rf $TEST_RESULT_DIR /bp/execution_dir/${GLOBAL_TASK_ID}/
         TASK_STATUS=1
     else
-        echo "✅ Test failure rate is within threshold."
+        logInfoMessage "✅ Test failure rate is within threshold."
         logInfoMessage "Updating Results in /bp/execution_dir/${GLOBAL_TASK_ID}......."
         cp -rf $TEST_RESULT_DIR /bp/execution_dir/${GLOBAL_TASK_ID}/
         TASK_STATUS=0
