@@ -17,8 +17,6 @@ CODEBASE_LOCATION="${WORKSPACE}"/"${CODEBASE_DIR}"
 logInfoMessage "I'll $INSTRUCTION_TYPE the code available at [$CODEBASE_LOCATION]"
 sleep  $SLEEP_DURATION
 
-# saveTaskStatusNew ${TASK_STATUS} ${ACTIVITY_SUB_TASK_CODE} "CODEBASE LOCATION SET" "Codebase path configured successfully"
-
 # Set the npmrc file default location
 set_npmrc
 
