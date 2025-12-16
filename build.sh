@@ -58,10 +58,10 @@ if [ -z "$INSTRUCTION" ]; then
     exit 1
     TASK_STATUS=$?
 fi
-
+# Custom logic to handle for codeartifact
 if [[ "${CODEARTIFACT}" = "true" ]]; then
     logInfoMessage "CodeArtifact is enabled. Generating and exporting auth token."
-# Custom logic to handle for codeartifact
+
     if [[ -n "$DOMAIN" && -n "$DOMAIN_OWNER" && -n "$REGION" ]]; then
         export CODEARTIFACT_AUTH_TOKEN=$(aws codeartifact get-authorization-token \
         --domain "$DOMAIN" \
