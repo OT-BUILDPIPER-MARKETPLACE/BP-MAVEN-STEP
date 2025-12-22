@@ -42,13 +42,10 @@ RUN chmod +x /usr/local/bin/switch_versions.sh
 ENV SLEEP_DURATION 5s
 ENV INSTRUCTION package
 
-COPY build.sh .
+COPY build-sign.sh .
 ADD BP-BASE-SHELL-STEPS /opt/buildpiper/shell-functions/
 
 ENV ACTIVITY_SUB_TASK_CODE MVN_EXECUTE
 
-# Set the entry point to the version switcher script
-ENTRYPOINT ["/usr/local/bin/switch_versions.sh", "./build.sh"]
-
-# Default command
-CMD ["bash"]
+# Entrypoint 
+ENTRYPOINT ["./build-sign.sh"]
