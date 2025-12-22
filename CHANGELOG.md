@@ -287,3 +287,146 @@ Here’s the updated change log for version `2.5.2.3` incorporating your additio
 * Backward compatible with previous versions
 * Requires `libxml2-utils` for HTML report parsing
 * Set `ENABLE_CUSTOM_HTML_SCAN=true` to enable HTML report parsing
+
+---
+
+**Tag:** `2.5.2.8-nr-ut-it`
+**Release Date:** *2025-12-23*
+**Maintainer:** *[Mukul Joshi](mukul.joshi@opstree.com), [GitHub](https://github.com/mukulmj)*
+## **Enhancements & Fixes**
+
+### **1. JaCoCo + Sonar + Nexus helper hardening**
+- Added comprehensive, masked debug tracing to `jacoco-sonar-nexus.sh` using `log-functions.sh`.
+  - Pretty `PS4` shows `file:line`; sensitive values (tokens/passwords and URL basic‑auth) are masked in traces.
+- Nexus operations improved with clear, credential‑free URL logging.
+  - `nexus_upload` prints the final artifact URL on success.
+  - `nexus_download` logs source URL, uses retries/timeouts, and reports the downloaded file size.
+- Introduced robust file placement with an atomic download workflow:
+  - Download to a temporary file, then `robust_move_file` (`mv → cp+rm → cat` fallback) to the final destination.
+  - Detailed diagnostics when destination directories are not writable.
+- New directory utility `ensure_writable_dir` with automatic fallback to `/tmp` when `DOWNLOAD_DIR` is unusable.
+- Fixed argument parsing in `nexus_download` to prevent empty destination paths and added guards in `robust_move_file`.
+
+### **2. Configurability for downloads**
+- New flags:
+  - `DOWNLOAD_ATOMIC` (default: `true`) to enable temp‑file + atomic move.
+  - `DOWNLOAD_FORCE_LOCAL` (default: `false`) to force using the current workspace path even if not fully writable.
+- `DOWNLOAD_DIR` defaults to `jacoco_download` with automatic fallback to `/tmp/jacoco_download` when needed.
+
+### **3. JaCoCo CLI retrieval resilience**
+- `ensure_jacoco_cli` now prefers a pre‑bundled jar, then local Maven repo, then a mirror or Maven Central.
+  - Supports corporate mirrors via `JACOCO_MAVEN_REPO_URL` and Nexus via `NEXUS_URL`/`REPO_NAME`.
+  - Environment variables used: `JACOCO_CLI_VERSION`, `JACOCO_MVN_VERSION`, and optional `JACOCO_CLI_JAR`.
+### **4. Docker image updates for cross‑version compatibility**
+
+- Base image now prefetches the JaCoCo CLI `nodeps` jar into `/opt/jacoco`.
+  - Adds `ENV` wiring for:
+  - `JACOCO_CLI_VERSION` (default `0.8.11`)
+  - `JACOCO_CLI_JAR` (e.g., `/opt/jacoco/org.jacoco.cli-0.8.11-nodeps.jar`)
+  - `JACOCO_MVN_VERSION` (default `0.8.11`) for the Maven plugin.
+
+### **5. Accurate report generation for IT and merged coverage**
+- `report_xml_from_exec()` now accepts a module directory override so the CLI points to the correct `<module>/target/classes` even when `.exec` files live in a separate download folder.
+- If classes are missing, the helper performs a lightweight build (`mvn -DskipTests package`) at the module or root.
+- Multi‑module support: when a single `target/classes` isn’t found, the CLI receives all module class/source directories discovered under the workspace.
+- `run_it_and_merge()` passes the correct module directory for IT and merged reports, eliminating `FileNotFoundException: ./target/classes` errors.
+
+### **6. Additional variables & defaults**
+- Supported/added variables:
+  - `UT_NEXUS_PATH` (default `ut/latest/jacoco-ut.exec`)
+  - `IT_NEXUS_PATH` (default `it/latest/jacoco-it.exec`)
+  - `DOWNLOAD_DIR`, `DOWNLOAD_ATOMIC`, `DOWNLOAD_FORCE_LOCAL`
+  - `JACOCO_CLI_VERSION`, `JACOCO_MVN_VERSION`, `JACOCO_CLI_JAR`, `JACOCO_MAVEN_REPO_URL`
+
+### **7. Compatibility & Notes**
+- Backward compatible; no breaking changes.
+- Secrets remain masked in logs; Nexus/Sonar URLs are logged without credentials.
+- Works across a wide range of Java/Maven versions due to the `nodeps` JaCoCo CLI jar.
+
+---
+
+## **Usage Guide (UT and IT+Merge)**
+
+### **Required Environment Variables**
+
+- `USERNAME`, `PASSWORD`: Nexus credentials
+- `NEXUS_URL`, `REPO_NAME`: Nexus base URL and repository name
+- `APPLICATION_NAME`, `CODEBASE_DIR`: Service and codebase identifiers used in Nexus pathing
+- `SONAR_HOST_URL`, `SONAR_TOKEN`: SonarQube endpoint and token
+- `BASE_PROJECT_KEY`: Base key used for Sonar projects (`-ut`, `-it`, and combined)
+
+### **Optional Environment Variables**
+
+- `JACOCO_FILE_PATH`: UT `.exec` path (auto-detected if omitted)
+- `UT_NEXUS_PATH` / `IT_NEXUS_PATH`: Nexus paths for UT/IT execs (defaults: `ut/latest/jacoco-ut.exec`, `it/latest/jacoco-it.exec`)
+- `DOWNLOAD_DIR`: Directory for downloads (default: `jacoco_download`, with fallback to `/tmp/jacoco_download`)
+- `DOWNLOAD_ATOMIC`: `true|false` (default `true`) — temp download + atomic move vs direct write
+- `DOWNLOAD_FORCE_LOCAL`: `true|false` (default `false`) — force using CWD paths even if potentially not writable
+- `JACOCO_CLI_VERSION`, `JACOCO_MVN_VERSION`, `JACOCO_CLI_JAR`, `JACOCO_MAVEN_REPO_URL`: control JaCoCo CLI/plugin versions and mirror
+
+### **UT Workflow**
+
+1. Generate UT coverage and publish Sonar; upload the UT exec to Nexus (`latest` and timestamped):
+
+```bash
+export USERNAME=your_user
+export PASSWORD=your_pass
+export NEXUS_URL=https://nexus.example.com
+export REPO_NAME=integration-testing
+export APPLICATION_NAME=your-service
+export CODEBASE_DIR=your-module-or-path
+export SONAR_HOST_URL=https://sonar.example.com
+export SONAR_TOKEN=your_sonar_token
+export BASE_PROJECT_KEY=myproject
+
+# Optional
+export JACOCO_FILE_PATH=rest/target/jacoco.exec
+export DOWNLOAD_ATOMIC=true
+export DOWNLOAD_FORCE_LOCAL=false
+
+bash BP-MAVEN-STEP/jacoco-sonar-nexus.sh ut
+```
+
+Results:
+- Creates `target/site/jacoco/jacoco.xml` under the UT module.
+- Publishes Sonar for `myproject-ut`.
+- Uploads UT exec to Nexus at `ut/latest/jacoco-ut.exec` and `ut/<timestamp>/jacoco-ut.exec`.
+
+### **IT + Merge Workflow**
+
+Preconditions:
+- UT step above has uploaded `ut/latest/jacoco-ut.exec`.
+- IT exec is available in Nexus (default `it/latest/jacoco-it.exec`).
+
+Run IT analysis, publish Sonar for `-it`, merge UT+IT, publish combined:
+
+```bash
+export USERNAME=your_user
+export PASSWORD=your_pass
+export NEXUS_URL=https://nexus.example.com
+export REPO_NAME=integration-testing
+export APPLICATION_NAME=your-service
+export CODEBASE_DIR=your-module-or-path
+export SONAR_HOST_URL=https://sonar.example.com
+export SONAR_TOKEN=your_sonar_token
+export BASE_PROJECT_KEY=myproject
+
+# Optional / confirm paths
+export IT_NEXUS_PATH=it/latest/jacoco-it.exec
+export UT_NEXUS_PATH=ut/latest/jacoco-ut.exec
+export DOWNLOAD_DIR=jacoco_download
+
+bash BP-MAVEN-STEP/jacoco-sonar-nexus.sh it-merge
+```
+
+Results:
+- Generates `target/site/jacoco-it/jacoco.xml` and publishes `myproject-it`.
+- Merges UT+IT into `DOWNLOAD_DIR/jacoco-merged.exec`.
+- Generates `target/site/jacoco-merged/jacoco.xml` and publishes combined `myproject`.
+
+### **Troubleshooting Tips**
+
+- Set `DEBUG=true` to see masked command traces and URLs.
+- If classes are missing, the script builds them (`mvn -DskipTests package`). Ensure `pom.xml` exists at module or root.
+- For restricted environments, set `JACOCO_MAVEN_REPO_URL` to a reachable mirror/Nexus to fetch the JaCoCo CLI jar.
+- If `DOWNLOAD_DIR` is not writable, the helper falls back to `/tmp`; override behavior with `DOWNLOAD_FORCE_LOCAL=true`.
