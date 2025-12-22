@@ -104,6 +104,7 @@ function fetch_service_details() {
       export JAVA_VERSION="$TEST_JAVA_VERSION"
       export MAVEN_VERSION="$TEST_MAVEN_VERSION"
     fi
+    export MAVEN_UT_INSTRUCTION=$(echo "$service_data" | jq -r '.MAVEN_UT_INSTRUCTION')
 
     # Remove the cloned repository
     echo "Removing the cloned repository..."

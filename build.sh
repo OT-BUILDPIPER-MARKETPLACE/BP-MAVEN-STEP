@@ -3,6 +3,7 @@ source /opt/buildpiper/shell-functions/functions.sh
 source /opt/buildpiper/shell-functions/log-functions.sh
 source getDynamicVars.sh
 source set_npmrc.sh
+source jacoco-sonar-nexus.sh
 
 TASK_STATUS=0
 
@@ -44,7 +45,13 @@ if [ -z "$INSTRUCTION" ]; then
         "DEPLOY") export INSTRUCTION=$MAVEN_DEPLOY_INSTRUCTION ;;
         "TEST")   export INSTRUCTION=$MAVEN_TEST_INSTRUCTION ;;
         "CUSTOM") export INSTRUCTION=$MAVEN_CUSTOM_INSTRUCTION ;;
-        "SONAR_SCAN" ) export INSTRUCTION=$MAVEN_SONAR_SCAN_INSTRUCTION ;;
+        "SONAR_SCAN" )
+            if [[ "$SONAR_TESTING_TYPE" == "Unit" && -n "${MAVEN_UT_INSTRUCTION:-}" ]]; then
+                export INSTRUCTION="$MAVEN_UT_INSTRUCTION"
+            else
+                export INSTRUCTION="$MAVEN_SONAR_SCAN_INSTRUCTION"
+            fi
+            ;;
         *) logErrorMessage "Unsupported $INSTRUCTION_TYPE: Executing default mvn $INSTRUCTION"
             ;;
     esac
@@ -55,6 +62,37 @@ if [ -z "$INSTRUCTION" ]; then
     logErrorMessage "INSTRUCTION is not set. Exiting..."
     exit 1
     TASK_STATUS=$?
+fi
+
+# If finalized INSTRUCTION contains a custom Maven settings path, set it as default (~/.m2/settings.xml)
+SETTINGS_PATH=""
+if [[ -n "$INSTRUCTION" ]]; then
+    # Tokenize to robustly handle "--settings <path>" and "-s <path>", as well as equals forms
+    read -r -a __WORDS <<< "$INSTRUCTION"
+    for (( __i=0; __i<${#__WORDS[@]}; __i++ )); do
+        __w="${__WORDS[__i]}"
+        case "$__w" in
+            --settings=*) SETTINGS_PATH="${__w#--settings=}" ;;
+            --settings)
+                if (( __i+1<${#__WORDS[@]} )); then SETTINGS_PATH="${__WORDS[__i+1]}"; fi ;;
+            -s=*) SETTINGS_PATH="${__w#-s=}" ;;
+            -s)
+                if (( __i+1<${#__WORDS[@]} )); then SETTINGS_PATH="${__WORDS[__i+1]}"; fi ;;
+        esac
+    done
+    if [[ -n "$SETTINGS_PATH" ]]; then
+        # Resolve relative path from current CODEBASE_LOCATION if needed
+        if [[ ! -f "$SETTINGS_PATH" && -f "$CODEBASE_LOCATION/$SETTINGS_PATH" ]]; then
+            SETTINGS_PATH="$CODEBASE_LOCATION/$SETTINGS_PATH"
+        fi
+        if [[ -f "$SETTINGS_PATH" ]]; then
+            mkdir -p "$HOME/.m2"
+            cp -f "$SETTINGS_PATH" "$HOME/.m2/settings.xml"
+            logInfoMessage "Applied custom Maven settings from [$SETTINGS_PATH] to [$HOME/.m2/settings.xml]"
+        else
+            logErrorMessage "Specified Maven settings file not found: $SETTINGS_PATH"
+        fi
+    fi
 fi
 
 # Ensure it's empty if null or not present
@@ -75,17 +113,60 @@ case "$SONAR_TESTING_TYPE" in
 esac
 
 if [[ "$INSTRUCTION_TYPE" == "SONAR_SCAN" ]]; then
-    logInfoMessage "Executing Sonar Scan for project [$CODEBASE_DIR$SONAR_SUFFIX]"
+    # Optional feature-flag to use Nexus + JaCoCo merge helper
+    if [[ "${ENABLE_JACOCO_NEXUS,,}" == "true" ]]; then
+        logInfoMessage "Using jacoco-sonar-nexus.sh helper for [$SONAR_TESTING_TYPE]"
 
-    # Log command safely (hide token)
-    logInfoMessage "mvn $INSTRUCTION $MAVEN_OPTIONS -Dsonar.projectKey=$CODEBASE_DIR$SONAR_SUFFIX -Dsonar.projectName=$CODEBASE_DIR$SONAR_SUFFIX -Dsonar.host.url=$SONAR_URL -Dsonar.login=******"
+        # Map env for helper script
+        export SONAR_HOST_URL="${SONAR_HOST_URL:-$SONAR_URL}"
+        # Ensure SONAR_TOKEN is exported for child script
+        export SONAR_TOKEN="${SONAR_TOKEN}"
+        export BASE_PROJECT_KEY="${BASE_PROJECT_KEY:-$CODEBASE_DIR}"
 
-    # Execute actual command
-    mvn $INSTRUCTION $MAVEN_OPTIONS \
-        -Dsonar.projectKey="${CODEBASE_DIR}${SONAR_SUFFIX}" \
-        -Dsonar.projectName="${CODEBASE_DIR}${SONAR_SUFFIX}" \
-        -Dsonar.host.url="$SONAR_URL" \
-        -Dsonar.login="$SONAR_TOKEN"
+        # Allow alternative Nexus credentials variable names
+        export USERNAME="${USERNAME:-${NEXUS_USERNAME:-}}"
+        export PASSWORD="${PASSWORD:-${NEXUS_PASSWORD:-}}"
+
+        # Prefer Maven plugin for JaCoCo unless explicitly overridden
+        export JACOCO_TOOL="${JACOCO_TOOL:-mvn}"
+
+        # Best-effort default for UT exec path if not provided
+        if [[ -z "${JACOCO_FILE_PATH:-}" ]]; then
+            GUESS_JACOCO=$(find . -type f -path "*/target/jacoco.exec" | head -n1 || true)
+            if [[ -n "$GUESS_JACOCO" ]]; then
+                export JACOCO_FILE_PATH="$GUESS_JACOCO"
+                logInfoMessage "Detected JACOCO_FILE_PATH at [$JACOCO_FILE_PATH]"
+            fi
+        fi
+
+        SCRIPT_DIR="$(dirname "$0")"
+        case "$SONAR_TESTING_TYPE" in
+            Unit)
+                logInfoMessage "Running UT upload + Sonar via helper"
+                jacoco_sonar_nexus ut
+                ;;
+            Integration)
+                logInfoMessage "Running IT download + merge + Sonar via helper"
+                jacoco_sonar_nexus it-merge
+                ;;
+            *)
+                logErrorMessage "ENABLE_JACOCO_NEXUS=true requires SONAR_TESTING_TYPE to be 'Unit' or 'Integration'"
+                exit 1
+                ;;
+        esac
+    else
+        logInfoMessage "Executing Sonar Scan for project [$CODEBASE_DIR$SONAR_SUFFIX]"
+
+        # Log command safely (hide token)
+        logInfoMessage "mvn $INSTRUCTION $MAVEN_OPTIONS -Dsonar.projectKey=$CODEBASE_DIR$SONAR_SUFFIX -Dsonar.projectName=$CODEBASE_DIR$SONAR_SUFFIX -Dsonar.host.url=$SONAR_URL -Dsonar.login=******"
+
+        # Execute actual command
+        mvn $INSTRUCTION $MAVEN_OPTIONS \
+            -Dsonar.projectKey="${CODEBASE_DIR}${SONAR_SUFFIX}" \
+            -Dsonar.projectName="${CODEBASE_DIR}${SONAR_SUFFIX}" \
+            -Dsonar.host.url="$SONAR_URL" \
+            -Dsonar.login="$SONAR_TOKEN"
+    fi
 else
     logInfoMessage "Executing mvn $INSTRUCTION $MAVEN_OPTIONS"
     mvn $INSTRUCTION $MAVEN_OPTIONS
@@ -96,7 +177,6 @@ TASK_STATUS=$?
 # Save the task status
 saveTaskStatus ${TASK_STATUS} ${ACTIVITY_SUB_TASK_CODE}
 # saveTaskStatusNew ${TASK_STATUS} ${ACTIVITY_SUB_TASK_CODE} "Executed mvn command" "Executed mvn $INSTRUCTION $MAVEN_OPTIONS"
-
 
 # Default XML scan (always runs for TEST)
 if [[ "$INSTRUCTION_TYPE" == "TEST" ]]; then

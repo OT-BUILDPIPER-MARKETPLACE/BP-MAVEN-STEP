@@ -36,7 +36,8 @@ COPY --chown=buildpiper:buildpiper build.sh .
 COPY --chown=buildpiper:buildpiper getDynamicVars.sh .
 COPY --chown=buildpiper:buildpiper set_npmrc.sh .
 ADD --chown=buildpiper:buildpiper BP-BASE-SHELL-STEPS /opt/buildpiper/shell-functions/
-RUN chmod +x build.sh set_npmrc.sh getDynamicVars.sh
+COPY --chown=buildpiper:buildpiper jacoco-sonar-nexus.sh .
+RUN chmod +x build.sh set_npmrc.sh getDynamicVars.sh jacoco-sonar-nexus.sh
 
 ENV ENABLE_MAVEN_SILENT_MODE false
 ENV SOURCE_JSON_FILE mavenrepos.json
