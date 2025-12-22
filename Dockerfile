@@ -11,6 +11,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     bash \
  && rm -rf /var/lib/apt/lists/*
 
+# Prefetch JaCoCo CLI jar for universal compatibility (works across Maven versions)
+# Keep version configurable via ENV to allow overrides at runtime
+ENV JACOCO_CLI_VERSION=0.8.11
+RUN mkdir -p /opt/jacoco && \
+        curl -fsSL -o /opt/jacoco/org.jacoco.cli-${JACOCO_CLI_VERSION}-nodeps.jar \
+            https://repo1.maven.org/maven2/org/jacoco/org.jacoco.cli/${JACOCO_CLI_VERSION}/org.jacoco.cli-${JACOCO_CLI_VERSION}-nodeps.jar && \
+        chmod 0644 /opt/jacoco/org.jacoco.cli-${JACOCO_CLI_VERSION}-nodeps.jar
+
 # Inherit buildpiper user and permissions (switch after installs)
 USER buildpiper
 
@@ -38,6 +46,9 @@ COPY --chown=buildpiper:buildpiper set_npmrc.sh .
 ADD --chown=buildpiper:buildpiper BP-BASE-SHELL-STEPS /opt/buildpiper/shell-functions/
 COPY --chown=buildpiper:buildpiper jacoco-sonar-nexus.sh .
 RUN chmod +x build.sh set_npmrc.sh getDynamicVars.sh jacoco-sonar-nexus.sh
+
+# Expose bundled JaCoCo CLI path for scripts that prefer a fixed location
+ENV JACOCO_CLI_JAR=/opt/jacoco/org.jacoco.cli-${JACOCO_CLI_VERSION}-nodeps.jar
 
 ENV ENABLE_MAVEN_SILENT_MODE false
 ENV SOURCE_JSON_FILE mavenrepos.json
