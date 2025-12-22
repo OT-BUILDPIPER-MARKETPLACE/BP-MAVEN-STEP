@@ -156,13 +156,14 @@ sonar_with_xml() {
   local class_dir="${4:-}"
 
   if command -v mvn >/dev/null 2>&1; then
-    mvn -q -e -DskipTests -DskipITs=true -DskipIT=true sonar:sonar \
+    # mvn -q -e -DskipTests -DskipITs=true -DskipIT=true sonar:sonar \
+    mvn -DskipTests sonar:sonar \
       -Dsonar.projectKey="$project_key" \
       -Dsonar.projectName="$project_name" \
       -Dsonar.host.url="$SONAR_HOST_URL" \
-      -Dsonar.login="$SONAR_TOKEN" \
-      -Dsonar.coverage.jacoco.xmlReportPaths="$xml_path" \
-      -Dsonar.java.binaries="${class_dir:-}" >/dev/null
+      -Dsonar.login="$SONAR_TOKEN"
+      # -Dsonar.coverage.jacoco.xmlReportPaths="$xml_path" \
+      # -Dsonar.java.binaries="${class_dir:-}" >/dev/null
   elif command -v sonar-scanner >/dev/null 2>&1; then
     sonar-scanner \
       -Dsonar.projectKey="$project_key" \
@@ -258,8 +259,21 @@ merge_execs() {
 nexus_upload() {
   local src_file="$1"; shift
   local path_suffix="$1"; shift
-  curl -sf -u "${USERNAME}:${PASSWORD}" --upload-file "$src_file" \
-    "${NEXUS_URL}/repository/${REPO_NAME}/${APPLICATION_NAME}/${CODEBASE_DIR}/${path_suffix}"
+  local url="${NEXUS_URL}/repository/${REPO_NAME}/${APPLICATION_NAME}/${CODEBASE_DIR}/${path_suffix}"
+  if curl -sf -u "${USERNAME}:${PASSWORD}" --upload-file "$src_file" "$url"; then
+    if declare -F logInfoMessage >/dev/null 2>&1; then
+      logInfoMessage "Uploaded to $url"
+    else
+      echo "Uploaded to $url"
+    fi
+  else
+    if declare -F logErrorMessage >/dev/null 2>&1; then
+      logErrorMessage "Upload failed to $url"
+    else
+      echo "Upload failed to $url" >&2
+    fi
+    return 1
+  fi
 }
 
 nexus_download() {
@@ -308,6 +322,7 @@ run_ut() {
   nexus_upload "$JACOCO_FILE_PATH" "ut/${DATE_TIME}/jacoco-ut.exec"
   nexus_upload "$JACOCO_FILE_PATH" "ut/latest/jacoco-ut.exec"
   echo "✅ UT upload + Sonar complete"
+  
 }
 
 run_it_and_merge() {
