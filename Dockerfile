@@ -43,7 +43,7 @@ RUN wget -q https://github.com/adoptium/temurin21-binaries/releases/download/jdk
  && tar xzf OpenJDK21U-jdk_x64_linux_hotspot_21_35.tar.gz -C /opt/jdk \
  && rm -f OpenJDK21U-jdk_x64_linux_hotspot_21_35.tar.gz
 
-# -------------------------------------------------------
+
 # MAVEN INSTALLS (ONE PER LAYER)
 # -------------------------------------------------------
 RUN wget -q https://archive.apache.org/dist/maven/maven-3/3.6.3/binaries/apache-maven-3.6.3-bin.tar.gz \

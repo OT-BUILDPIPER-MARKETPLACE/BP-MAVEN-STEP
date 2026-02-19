@@ -22,6 +22,32 @@ else
   saveTaskStatus 1 ${ACTIVITY_SUB_TASK_CODE}
   exit 1
 fi
+# Switch Java version
+if [ "$JAVA_VERSION" == "8" ]; then
+  export JAVA_HOME=$JAVA_HOME_8
+elif [ "$JAVA_VERSION" == "11" ]; then
+  export JAVA_HOME=$JAVA_HOME_11
+elif [ "$JAVA_VERSION" == "17" ]; then
+  export JAVA_HOME=$JAVA_HOME_17
+elif [ "$JAVA_VERSION" == "21" ]; then
+  export JAVA_HOME=$JAVA_HOME_21
+fi
+
+# Switch Maven version
+if [ "$MAVEN_VERSION" == "3.6.3" ]; then
+  export MAVEN_HOME=$MAVEN_HOME_363
+elif [ "$MAVEN_VERSION" == "3.8.1" ]; then
+  export MAVEN_HOME=$MAVEN_HOME_381
+elif [ "$MAVEN_VERSION" == "3.5.4" ]; then
+  export MAVEN_HOME=$MAVEN_HOME_354
+fi
+
+# Update PATH
+export PATH=$JAVA_HOME/bin:$MAVEN_HOME/bin:$PATH
+
+# Log the selected versions
+echo "Using JDK version: $JAVA_VERSION ($JAVA_HOME)"
+echo "Using Maven version: $MAVEN_VERSION ($MAVEN_HOME)"
 
 # Run keytool with the appropriate JDK
 "${JDK_PATH}/bin/keytool" -import -alias jetty -keystore "${JDK_PATH}/lib/security/cacerts" -file ./nexus.cer -storepass changeit -noprompt
