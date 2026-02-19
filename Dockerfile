@@ -104,4 +104,4 @@ ENV ACTIVITY_SUB_TASK_CODE=MVN_EXECUTE
 # -------------------------------------------------------
 USER buildpiper
 WORKDIR /opt/buildpiper
-ENTRYPOINT ["./build.sh"]
+ENTRYPOINT ["/opt/buildpiper/build.sh"]
