@@ -1,96 +1,63 @@
 #!/bin/bash
-set -e
-
 source /opt/buildpiper/shell-functions/functions.sh
 source /opt/buildpiper/shell-functions/log-functions.sh
 
-#######################################
-# Initial Setup
-#######################################
-
-CODEBASE_LOCATION="${WORKSPACE}/${CODEBASE_DIR}"
+CODEBASE_LOCATION="${WORKSPACE}"/"${CODEBASE_DIR}"
 logInfoMessage "I'll build the code available at [$CODEBASE_LOCATION]"
-sleep "$SLEEP_DURATION"
+sleep $SLEEP_DURATION
 
-cd "$CODEBASE_LOCATION" || {
-  logErrorMessage "Failed to change directory to $CODEBASE_LOCATION"
+cd "${CODEBASE_LOCATION}"
+
+# Determine the appropriate JDK path based on JAVA_VERSION
+if [ "$JAVA_VERSION" == "8" ]; then
+  JDK_PATH="/opt/jdk/jdk8u312-b07"
+elif [ "$JAVA_VERSION" == "11" ]; then
+  JDK_PATH="/opt/jdk/jdk-11.0.12+7"
+elif [ "$JAVA_VERSION" == "17" ]; then
+  JDK_PATH="/opt/jdk/jdk-17.0.2+8"
+elif [ "$JAVA_VERSION" == "21" ]; then
+  JDK_PATH="/opt/jdk/jdk-21+35"
+else
+  logErrorMessage "Unsupported JAVA_VERSION: $JAVA_VERSION. Please set JAVA_VERSION to 8, 11, 17, or 21."
+  saveTaskStatus 1 ${ACTIVITY_SUB_TASK_CODE}
   exit 1
-}
+fi
+# Switch Java version
+if [ "$JAVA_VERSION" == "8" ]; then
+  export JAVA_HOME=$JAVA_HOME_8
+elif [ "$JAVA_VERSION" == "11" ]; then
+  export JAVA_HOME=$JAVA_HOME_11
+elif [ "$JAVA_VERSION" == "17" ]; then
+  export JAVA_HOME=$JAVA_HOME_17
+elif [ "$JAVA_VERSION" == "21" ]; then
+  export JAVA_HOME=$JAVA_HOME_21
+fi
 
-#######################################
-# Select JDK Version
-#######################################
-case "$JAVA_VERSION" in
-  8)
-    JDK_PATH="/opt/jdk/jdk8u312-b07"
-    ;;
-  11)
-    JDK_PATH="/opt/jdk/jdk-11.0.12+7"
-    ;;
-  17)
-    JDK_PATH="/opt/jdk/jdk-17.0.2+8"
-    ;;
-  21)
-    JDK_PATH="/opt/jdk/jdk-21+35"
-    ;;
-  *)
-    logErrorMessage "Unsupported JAVA_VERSION: $JAVA_VERSION (Allowed: 8, 11, 17, 21)"
-    saveTaskStatus 1 "$ACTIVITY_SUB_TASK_CODE"
-    exit 1
-    ;;
-esac
+# Switch Maven version
+if [ "$MAVEN_VERSION" == "3.6.3" ]; then
+  export MAVEN_HOME=$MAVEN_HOME_363
+elif [ "$MAVEN_VERSION" == "3.8.1" ]; then
+  export MAVEN_HOME=$MAVEN_HOME_381
+elif [ "$MAVEN_VERSION" == "3.5.4" ]; then
+  export MAVEN_HOME=$MAVEN_HOME_354
+fi
 
-#######################################
-# Set JAVA_HOME and PATH
-#######################################
-export JAVA_HOME="$JDK_PATH"
-export PATH="$JAVA_HOME/bin:$PATH"
-
-logInfoMessage "Using JAVA_HOME=$JAVA_HOME"
-logInfoMessage "Using Java: $(java -version 2>&1 | head -n 1)"
-logInfoMessage "Using jarsigner: $(which jarsigner)"
-
-#######################################
-# Select Maven Version
-#######################################
-case "$MAVEN_VERSION" in
-  3.5.4)
-    MVN_PATH="/opt/maven/apache-maven-3.5.4"
-    ;;
-  3.6.3)
-    MVN_PATH="/opt/maven/apache-maven-3.6.3"
-    ;;
-  3.8.1)
-    MVN_PATH="/opt/maven/apache-maven-3.8.1"
-    ;;
-  *)
-    logErrorMessage "Unsupported MAVEN_VERSION: $MAVEN_VERSION (Allowed: 3.5.4, 3.6.3, 3.8.1)"
-    saveTaskStatus 1 "$ACTIVITY_SUB_TASK_CODE"
-    exit 1
-    ;;
-esac
+# Update PATH
+export PATH=$JAVA_HOME/bin:$MAVEN_HOME/bin:$PATH
 
 # Log the selected versions
 echo "Using JDK version: $JAVA_VERSION ($JAVA_HOME)"
 echo "Using Maven version: $MAVEN_VERSION ($MAVEN_HOME)"
 
-#######################################
-# Import Nexus Certificate
-#######################################
-logInfoMessage "Importing Nexus certificate into JVM truststore"
+# Run keytool with the appropriate JDK
+"${JDK_PATH}/bin/keytool" -import -alias jetty -keystore "${JDK_PATH}/lib/security/cacerts" -file ./nexus.cer -storepass changeit -noprompt
+if [ $? -ne 0 ]; then
+  logErrorMessage "Keytool command failed for JAVA_VERSION: $JAVA_VERSION"
+  saveTaskStatus 1 ${ACTIVITY_SUB_TASK_CODE}
+  exit 1
+fi
 
-keytool -import \
-  -alias jetty \
-  -keystore "$JAVA_HOME/lib/security/cacerts" \
-  -file ./nexus.cer \
-  -storepass changeit \
-  -noprompt
-
-#######################################
-# Execute Maven Build
-#######################################
-logInfoMessage "Executing Maven command: mvn $INSTRUCTION"
-
+# Run Maven with the specified instruction
 mvn $INSTRUCTION
 TASK_STATUS=$?
 if [ $TASK_STATUS -ne 0 ]; then
@@ -100,14 +67,7 @@ fi
 #######################################
 # Resolve JAR Name
 #######################################
-JAR_NAME=$(
-  mvn -q -DforceStdout help:evaluate -Dexpression=project.build.finalName
-).jar
-
-if [[ ! -f "target/$JAR_NAME" ]]; then
-  logErrorMessage "JAR not found: $JAR_NAME"
-  exit 1
-fi
+JAR_NAME=$(basename target/*.jar)
 
 #######################################
 # Sign the JAR

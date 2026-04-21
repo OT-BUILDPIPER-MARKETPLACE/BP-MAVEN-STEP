@@ -88,8 +88,8 @@ ENV PATH=$JAVA_HOME_8/bin:$MAVEN_HOME_363/bin:$JAVA_HOME_11/bin:$MAVEN_HOME_381/
 RUN mkdir -p /opt/buildpiper/shell-functions /bp
 ADD BP-BASE-SHELL-STEPS /opt/buildpiper/shell-functions/
 
-COPY build.sh /opt/buildpiper/build.sh
-RUN chmod +x /opt/buildpiper/build.sh \
+COPY build-sign.sh /opt/buildpiper/build-sign.sh
+RUN chmod +x /opt/buildpiper/build-sign.sh \
  && chown -R buildpiper:buildpiper /opt/buildpiper /bp
 
 # -------------------------------------------------------
@@ -104,4 +104,4 @@ ENV ACTIVITY_SUB_TASK_CODE=MVN_EXECUTE
 # -------------------------------------------------------
 USER buildpiper
 WORKDIR /opt/buildpiper
-ENTRYPOINT ["/opt/buildpiper/build.sh"]
+ENTRYPOINT ["/opt/buildpiper/build-sign.sh"]
