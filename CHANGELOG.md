@@ -287,3 +287,6 @@ Here’s the updated change log for version `2.5.2.3` incorporating your additio
 * Backward compatible with previous versions
 * Requires `libxml2-utils` for HTML report parsing
 * Set `ENABLE_CUSTOM_HTML_SCAN=true` to enable HTML report parsing
+
+
+
