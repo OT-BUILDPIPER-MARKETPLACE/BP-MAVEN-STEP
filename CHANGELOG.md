@@ -288,5 +288,12 @@ Here’s the updated change log for version `2.5.2.3` incorporating your additio
 * Requires `libxml2-utils` for HTML report parsing
 * Set `ENABLE_CUSTOM_HTML_SCAN=true` to enable HTML report parsing
 
+---
 
+**Tag:** `2.5.2.9-nr`
+**Release Date:** *2025-10-30*
+**Maintainer:** *[Mukul Joshi](mukul.joshi@opstree.com), [GitHub](https://github.com/mukulmj)*
 
+### 🔄 Changes
+
+* **[NEW]** Added the logic of the private source variable repo support for the maven execute step
