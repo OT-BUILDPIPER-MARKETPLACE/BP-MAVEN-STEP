@@ -34,13 +34,24 @@ elif [ "$JAVA_VERSION" == "21" ]; then
 fi
 
 # Switch Maven version
-if [ "$MAVEN_VERSION" == "3.6.3" ]; then
-  export MAVEN_HOME=$MAVEN_HOME_363
-elif [ "$MAVEN_VERSION" == "3.8.1" ]; then
-  export MAVEN_HOME=$MAVEN_HOME_381
-elif [ "$MAVEN_VERSION" == "3.5.4" ]; then
-  export MAVEN_HOME=$MAVEN_HOME_354
-fi
+case "$MAVEN_VERSION" in
+  "3.5.4")
+    export MAVEN_HOME=$MAVEN_HOME_354
+    ;;
+  "3.6.3")
+    export MAVEN_HOME=$MAVEN_HOME_363
+    ;;
+  "3.8.1")
+    export MAVEN_HOME=$MAVEN_HOME_381
+    ;;
+  "3.9.16")
+    export MAVEN_HOME=$MAVEN_HOME_3916
+    ;;
+  *)
+    echo "Maven version '${MAVEN_VERSION:-default}' not specified or unsupported. Using Maven 3.6.3."
+    export MAVEN_HOME=$MAVEN_HOME_363
+    ;;
+esac
 
 # Update PATH
 export PATH=$JAVA_HOME/bin:$MAVEN_HOME/bin:$PATH

@@ -43,9 +43,13 @@ RUN wget -q https://github.com/adoptium/temurin21-binaries/releases/download/jdk
  && tar xzf OpenJDK21U-jdk_x64_linux_hotspot_21_35.tar.gz -C /opt/jdk \
  && rm -f OpenJDK21U-jdk_x64_linux_hotspot_21_35.tar.gz
 
-
+# -------------------------------------------------------
 # MAVEN INSTALLS (ONE PER LAYER)
 # -------------------------------------------------------
+RUN wget -q https://archive.apache.org/dist/maven/maven-3/3.5.4/binaries/apache-maven-3.5.4-bin.tar.gz \
+ && tar xzf apache-maven-3.5.4-bin.tar.gz -C /opt/maven \
+ && rm -f apache-maven-3.5.4-bin.tar.gz
+
 RUN wget -q https://archive.apache.org/dist/maven/maven-3/3.6.3/binaries/apache-maven-3.6.3-bin.tar.gz \
  && tar xzf apache-maven-3.6.3-bin.tar.gz -C /opt/maven \
  && rm -f apache-maven-3.6.3-bin.tar.gz
@@ -54,10 +58,9 @@ RUN wget -q https://archive.apache.org/dist/maven/maven-3/3.8.1/binaries/apache-
  && tar xzf apache-maven-3.8.1-bin.tar.gz -C /opt/maven \
  && rm -f apache-maven-3.8.1-bin.tar.gz
 
-RUN wget -q https://archive.apache.org/dist/maven/maven-3/3.5.4/binaries/apache-maven-3.5.4-bin.tar.gz \
- && tar xzf apache-maven-3.5.4-bin.tar.gz -C /opt/maven \
- && rm -f apache-maven-3.5.4-bin.tar.gz
-
+RUN wget -q https://archive.apache.org/dist/maven/maven-3/3.9.16/binaries/apache-maven-3.9.16-bin.tar.gz \
+ && tar xzf apache-maven-3.9.16-bin.tar.gz -C /opt/maven \
+ && rm -f apache-maven-3.9.16-bin.tar.gz
 
 # -------------------------------------------------------
 # Create non-root user and group (UID/GID 65522)
@@ -78,18 +81,28 @@ ENV JAVA_HOME_11=/opt/jdk/jdk-11.0.12+7
 ENV JAVA_HOME_17=/opt/jdk/jdk-17.0.2+8
 ENV JAVA_HOME_21=/opt/jdk/jdk-21+35
 
+ENV MAVEN_HOME_354=/opt/maven/apache-maven-3.5.4
 ENV MAVEN_HOME_363=/opt/maven/apache-maven-3.6.3
 ENV MAVEN_HOME_381=/opt/maven/apache-maven-3.8.1
-ENV MAVEN_HOME_354=/opt/maven/apache-maven-3.5.4
+ENV MAVEN_HOME_3916=/opt/maven/apache-maven-3.9.16
 
-ENV PATH=$JAVA_HOME_8/bin:$MAVEN_HOME_363/bin:$JAVA_HOME_11/bin:$MAVEN_HOME_381/bin:$JAVA_HOME_17/bin:$MAVEN_HOME_354/bin:$JAVA_HOME_21/bin:$PATH
+# Default Java: JDK 8
+# Default Maven: 3.9.16
+ENV JAVA_HOME=$JAVA_HOME_8
+ENV MAVEN_HOME=$MAVEN_HOME_3916
+
+ENV PATH=$JAVA_HOME/bin:$MAVEN_HOME/bin:$JAVA_HOME_11/bin:$JAVA_HOME_17/bin:$JAVA_HOME_21/bin:$MAVEN_HOME_381/bin:$MAVEN_HOME_363/bin:$MAVEN_HOME_354/bin:$PATH
 
 # -------------------------------------------------------
+# BuildPiper setup
+# -------------------------------------------------------
 RUN mkdir -p /opt/buildpiper/shell-functions /bp
+
 ADD BP-BASE-SHELL-STEPS /opt/buildpiper/shell-functions/
 
-COPY build-sign.sh /opt/buildpiper/build-sign.sh
-RUN chmod +x /opt/buildpiper/build-sign.sh \
+COPY build.sh /opt/buildpiper/build.sh
+
+RUN chmod +x /opt/buildpiper/build.sh \
  && chown -R buildpiper:buildpiper /opt/buildpiper /bp
 
 # -------------------------------------------------------
@@ -103,5 +116,7 @@ ENV ACTIVITY_SUB_TASK_CODE=MVN_EXECUTE
 # Non-root execution
 # -------------------------------------------------------
 USER buildpiper
+
 WORKDIR /opt/buildpiper
-ENTRYPOINT ["/opt/buildpiper/build-sign.sh"]
+
+ENTRYPOINT ["/opt/buildpiper/build.sh"]
