@@ -17,8 +17,10 @@ elif [ "$JAVA_VERSION" == "17" ]; then
   JDK_PATH="/opt/jdk/jdk-17.0.2+8"
 elif [ "$JAVA_VERSION" == "21" ]; then
   JDK_PATH="/opt/jdk/jdk-21+35"
+elif [ "$JAVA_VERSION" == "25" ]; then
+  JDK_PATH="/opt/jdk/jdk-25+36"
 else
-  logErrorMessage "Unsupported JAVA_VERSION: $JAVA_VERSION. Please set JAVA_VERSION to 8, 11, 17, or 21."
+  logErrorMessage "Unsupported JAVA_VERSION: $JAVA_VERSION. Please set JAVA_VERSION to 8, 11, 17, 21, or 25."
   saveTaskStatus 1 ${ACTIVITY_SUB_TASK_CODE}
   exit 1
 fi

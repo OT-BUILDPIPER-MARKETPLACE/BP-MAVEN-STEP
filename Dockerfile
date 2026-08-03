@@ -43,6 +43,9 @@ RUN wget -q https://github.com/adoptium/temurin21-binaries/releases/download/jdk
  && tar xzf OpenJDK21U-jdk_x64_linux_hotspot_21_35.tar.gz -C /opt/jdk \
  && rm -f OpenJDK21U-jdk_x64_linux_hotspot_21_35.tar.gz
 
+RUN wget -q https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25%2B36/OpenJDK25U-jdk_x64_linux_hotspot_25_36.tar.gz \
+ && tar xzf OpenJDK25U-jdk_x64_linux_hotspot_25_36.tar.gz -C /opt/jdk \
+ && rm -f OpenJDK25U-jdk_x64_linux_hotspot_25_36.tar.gz
 # -------------------------------------------------------
 # MAVEN INSTALLS (ONE PER LAYER)
 # -------------------------------------------------------
@@ -80,6 +83,7 @@ ENV JAVA_HOME_8=/opt/jdk/jdk8u312-b07
 ENV JAVA_HOME_11=/opt/jdk/jdk-11.0.12+7
 ENV JAVA_HOME_17=/opt/jdk/jdk-17.0.2+8
 ENV JAVA_HOME_21=/opt/jdk/jdk-21+35
+ENV JAVA_HOME_25=/opt/jdk/jdk-25+36
 
 ENV MAVEN_HOME_354=/opt/maven/apache-maven-3.5.4
 ENV MAVEN_HOME_363=/opt/maven/apache-maven-3.6.3
@@ -91,8 +95,7 @@ ENV MAVEN_HOME_3916=/opt/maven/apache-maven-3.9.16
 ENV JAVA_HOME=$JAVA_HOME_8
 ENV MAVEN_HOME=$MAVEN_HOME_3916
 
-ENV PATH=$JAVA_HOME/bin:$MAVEN_HOME/bin:$JAVA_HOME_11/bin:$JAVA_HOME_17/bin:$JAVA_HOME_21/bin:$MAVEN_HOME_381/bin:$MAVEN_HOME_363/bin:$MAVEN_HOME_354/bin:$PATH
-
+ENV PATH=$JAVA_HOME/bin:$MAVEN_HOME/bin:$JAVA_HOME_11/bin:$JAVA_HOME_17/bin:$JAVA_HOME_21/bin:$JAVA_HOME_25/bin:$MAVEN_HOME_381/bin:$MAVEN_HOME_363/bin:$MAVEN_HOME_354/bin:$PATH
 # -------------------------------------------------------
 # BuildPiper setup
 # -------------------------------------------------------
