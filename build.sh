@@ -33,6 +33,8 @@ elif [ "$JAVA_VERSION" == "17" ]; then
   export JAVA_HOME=$JAVA_HOME_17
 elif [ "$JAVA_VERSION" == "21" ]; then
   export JAVA_HOME=$JAVA_HOME_21
+elif [ "$JAVA_VERSION" == "25" ]; then
+  export JAVA_HOME=$JAVA_HOME_25
 fi
 
 # Switch Maven version
