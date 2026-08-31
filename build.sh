@@ -19,8 +19,10 @@ elif [ "$JAVA_VERSION" == "21" ]; then
   JDK_PATH="/opt/jdk/jdk-21+35"
 elif [ "$JAVA_VERSION" == "25" ]; then
   JDK_PATH="/opt/jdk/jdk-25+36"
+elif [ "$JAVA_VERSION" == "2504" ]; then
+  JDK_PATH="/opt/jdk/jdk-25.0.4.1+1"  
 else
-  logErrorMessage "Unsupported JAVA_VERSION: $JAVA_VERSION. Please set JAVA_VERSION to 8, 11, 17, 21, or 25."
+  logErrorMessage "Unsupported JAVA_VERSION: $JAVA_VERSION. Please set JAVA_VERSION to 8, 11, 17, 21, 25 or 2504."
   saveTaskStatus 1 ${ACTIVITY_SUB_TASK_CODE}
   exit 1
 fi
@@ -35,6 +37,8 @@ elif [ "$JAVA_VERSION" == "21" ]; then
   export JAVA_HOME=$JAVA_HOME_21
 elif [ "$JAVA_VERSION" == "25" ]; then
   export JAVA_HOME=$JAVA_HOME_25
+elif [ "$JAVA_VERSION" == "2504" ]; then
+  export JAVA_HOME=$JAVA_HOME_2504
 fi
 
 # Switch Maven version
