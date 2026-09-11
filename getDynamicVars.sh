@@ -1,9 +1,21 @@
 source /opt/buildpiper/shell-functions/functions.sh
 source /opt/buildpiper/shell-functions/proxy-handling.sh
 
+# Set GIT_SSL_FLAG to the git config flag when SSL verification should be disabled.
+# Usage: export GIT_SSL_FLAG=true  → passes -c http.sslVerify=false to git commands
+#        GIT_SSL_FLAG unset/empty  → plain git clone with no extra flags
+GIT_SSL_FLAG="${GIT_SSL_FLAG:-}"
+
 # Function to clone the repository, extract details, and set environment variables
 function fetch_service_details() {
-    
+
+    # Build the git SSL option array based on GIT_SSL_FLAG
+    local git_ssl_opts=()
+    if [[ "$GIT_SSL_FLAG" == "true" ]]; then
+        git_ssl_opts=(-c http.sslVerify=false)
+        echo "SSL verification disabled for git operations."
+    fi
+
     # Repository details
     # local SOURCE_VARIABLE_REPO="https://github.com/buildpipermasterpipeline.git"
     local LOCAL_REPO_DIR="/tmp/buildpipermasterpipeline"
@@ -30,7 +42,7 @@ function fetch_service_details() {
             fi
 
             echo "Attempt $attempt: Cloning..."
-            output=$(run_without_proxy_then_with_fallback git clone --branch "$APPLICATION_NAME" --depth 2 "$SOURCE_VARIABLE_REPO" "$LOCAL_REPO_DIR" 2>&1)
+            output=$(run_without_proxy_then_with_fallback git "${git_ssl_opts[@]}" clone --branch "$APPLICATION_NAME" --depth 2 "$SOURCE_VARIABLE_REPO" "$LOCAL_REPO_DIR" 2>&1)
             clone_status=$?
 
             if [ $clone_status -eq 0 ]; then
@@ -50,8 +62,8 @@ function fetch_service_details() {
     else
         echo "Repository already exists. Fetching latest changes..."
         cd "$LOCAL_REPO_DIR" || { echo "Error: Cannot change directory to $LOCAL_REPO_DIR"; return 1; }
-        git fetch origin "$APPLICATION_NAME" --depth 2 || { echo "Error: Fetching latest changes failed."; return 1; }
-        git pull origin "$APPLICATION_NAME" || { echo "Error: Pulling latest changes failed for branch $APPLICATION_NAME."; return 1; }
+        git "${git_ssl_opts[@]}" fetch origin "$APPLICATION_NAME" --depth 2 || { echo "Error: Fetching latest changes failed."; return 1; }
+        git "${git_ssl_opts[@]}" pull origin "$APPLICATION_NAME" || { echo "Error: Pulling latest changes failed for branch $APPLICATION_NAME."; return 1; }
     fi
 
     # Path to the mavenrepos.json file

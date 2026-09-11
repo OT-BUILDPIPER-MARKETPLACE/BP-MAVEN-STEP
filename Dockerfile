@@ -36,6 +36,7 @@ ENV ENABLE_MAVEN_SILENT_MODE false
 ENV SOURCE_JSON_FILE mavenrepos.json
 ENV VALIDATION_FAILURE_ACTION WARNING 
 ENV ACTIVITY_SUB_TASK_CODE MVN_EXECUTE
+ENV GIT_SSL_FLAG=false
 ENTRYPOINT [ "/usr/local/bin/switch_versions.sh", "./build.sh" ]
 
 CMD ["bash"]
