@@ -1,13 +1,19 @@
 FROM registry.buildpiper.in/base-image/java-maven:2.0.7
 
 RUN apt-get update && apt-get install -y \
+    curl \
+    ca-certificates \
     libxml2-utils \
     findutils \
     grep \
     sed \
     gawk \
     coreutils \
-    bash
+    jq \
+    python3 \
+    python3-cryptography \
+    bash \
+    && rm -rf /var/lib/apt/lists/*
 
 # Set up NVM environment variable
 ENV NVM_DIR="/root/.nvm"
@@ -36,6 +42,7 @@ ENV ENABLE_MAVEN_SILENT_MODE false
 ENV SOURCE_JSON_FILE mavenrepos.json
 ENV VALIDATION_FAILURE_ACTION WARNING 
 ENV ACTIVITY_SUB_TASK_CODE MVN_EXECUTE
+ENV GIT_SSL_FLAG=false
 ENTRYPOINT [ "/usr/local/bin/switch_versions.sh", "./build.sh" ]
 
 CMD ["bash"]

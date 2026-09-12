@@ -22,20 +22,22 @@ set_npmrc
 cd "${CODEBASE_LOCATION}" || { logErrorMessage "Failed to change directory to $CODEBASE_LOCATION"; exit 1; }
 
 # Main logic to check conditions and call fetch_service_details
-if [ -n "$SOURCE_VARIABLE_REPO" ]; then
+# Fetch repository details from Git Integration
+if [ -n "$GIT_REPO" ]; then
+
     # Check if INSTRUCTION is provided
     if [ -n "$INSTRUCTION" ]; then
-        logInfoMessage "INSTRUCTION is provided. Skipping fetching details from SOURCE_VARIABLE_REPO."
+        logInfoMessage "INSTRUCTION is provided. Skipping fetching details from GIT_REPO."
     else
-        logInfoMessage "Fetching details from $SOURCE_VARIABLE_REPO as INSTRUCTION is not provided."
+        logInfoMessage "Fetching details from GIT_REPO as INSTRUCTION is not provided."
         fetch_service_details
         source /usr/local/bin/switch_versions.sh
     fi
 
 else
-    logInfoMessage "SOURCE_VARIABLE_REPO is not defined. Skipping fetching details from SOURCE_VARIABLE_REPO."
-    # exit 1
+    logInfoMessage "GIT_REPO is not defined. Skipping fetching details from GIT_REPO."
 fi
+
 
 # Switch maven INSTRUCTION based on INSTRUCTION_TYPE
 if [ -z "$INSTRUCTION" ]; then
@@ -126,7 +128,7 @@ if [[ "$INSTRUCTION_TYPE" == "TEST" ]]; then
         TASK_STATUS=1
     fi
     saveTaskStatus ${TASK_STATUS} ${ACTIVITY_SUB_TASK_CODE}
-    # saveTaskStatusNew ${TASK_STATUS} ${ACTIVITY_SUB_TASK_CODE} "Analyzed mvn test reports" "Executed mvn $INSTRUCTION $MAVEN_OPTIONS" 
+    # saveTaskStatusNew ${TASK_STATUS} ${ACTIVITY_SUB_TASK_CODE} "Analyzed mvn test reports" "Executed mvn $INSTRUCTION $MAVEN_OPTIONS"
 fi
 
 # Custom HTML scan (only runs if ENABLE_CUSTOM_HTML_SCAN is true)
@@ -134,7 +136,7 @@ if [[ "$INSTRUCTION_TYPE" == "TEST" && "${ENABLE_CUSTOM_HTML_SCAN,,}" == "true" 
     echo "CODEBASE_LOCATION is: $CODEBASE_LOCATION"
     TEST_RESULT_DIR="${TEST_RESULT_DIR:-Results}"
     echo "Custom HTML scan enabled. Checking for HTML reports in $TEST_RESULT_DIR"
-    
+
     ls -l "$TEST_RESULT_DIR"
 
     REPORT_HTML=$(find "$TEST_RESULT_DIR" -type f -name "*.html" -printf "%T@ %p\n" | sort -nr | head -1 | awk '{print $2}')
