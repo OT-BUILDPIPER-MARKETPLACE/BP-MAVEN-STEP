@@ -23,18 +23,17 @@ cd "${CODEBASE_LOCATION}" || { logErrorMessage "Failed to change directory to $C
 
 # Main logic to check conditions and call fetch_service_details
 # Fetch repository details from Git Integration
-if [ -n "$SOURCE_VARIABLE_REPO" ]; then
-    # Check if INSTRUCTION is provided
+if [ -n "$GIT_REPO" ]; then    # Check if INSTRUCTION is provided
     if [ -n "$INSTRUCTION" ]; then
-        logInfoMessage "INSTRUCTION is provided. Skipping fetching details from SOURCE_VARIABLE_REPO."
+            logInfoMessage "INSTRUCTION is provided. Skipping fetching details from GIT_REPO."
     else
-        logInfoMessage "Fetching details from $SOURCE_VARIABLE_REPO as INSTRUCTION is not provided."
+        logInfoMessage "Fetching details from GIT_REPO as INSTRUCTION is not provided."
         fetch_service_details
         source /usr/local/bin/switch_versions.sh
     fi
 
 else
-    logInfoMessage "SOURCE_VARIABLE_REPO is not defined. Skipping fetching details from SOURCE_VARIABLE_REPO."
+    logInfoMessage "GIT_REPO is not defined. Skipping fetching details from GIT_REPO."
 fi
 
 
