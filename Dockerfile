@@ -1,30 +1,38 @@
-FROM registry.buildpiper.in/base-image/java-maven:2.0.7
+FROM registry.buildpiper.in/base-image/java-maven:2.0.8-nr
 
-RUN apt-get update && apt-get install -y \
-    curl \
-    ca-certificates \
+# Install packages as root (do NOT switch to non-root yet)
+RUN apt-get update && apt-get install -y --no-install-recommends \
     libxml2-utils \
     findutils \
     grep \
     sed \
     gawk \
     coreutils \
-    jq \
-    python3 \
-    python3-cryptography \
     bash \
-    && rm -rf /var/lib/apt/lists/*
+ && rm -rf /var/lib/apt/lists/*
+
+# Prefetch JaCoCo CLI jar for universal compatibility (works across Maven versions)
+# Keep version configurable via ENV to allow overrides at runtime
+ENV JACOCO_CLI_VERSION=0.8.11
+RUN mkdir -p /opt/jacoco && \
+        curl -fsSL -o /opt/jacoco/org.jacoco.cli-${JACOCO_CLI_VERSION}-nodeps.jar \
+            https://repo1.maven.org/maven2/org/jacoco/org.jacoco.cli/${JACOCO_CLI_VERSION}/org.jacoco.cli-${JACOCO_CLI_VERSION}-nodeps.jar && \
+        chmod 0644 /opt/jacoco/org.jacoco.cli-${JACOCO_CLI_VERSION}-nodeps.jar
+
+# Inherit buildpiper user and permissions (switch after installs)
+USER buildpiper
 
 # Set up NVM environment variable
-ENV NVM_DIR="/root/.nvm"
+ENV HOME="/home/buildpiper"
+ENV NVM_DIR="$HOME/.nvm"
 ENV INSTRUCTION_TYPE="BUILD"
 
 # Install NVM, Node.js v14.21.3, and a compatible version of pnpm
 RUN curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash && \
-    bash -c "source $NVM_DIR/nvm.sh && nvm install v14.21.3 && nvm use v14.21.3 && npm install -g pnpm@7" && \
-    echo 'export NVM_DIR="/root/.nvm"' >> /root/.bashrc && \
-    echo '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"' >> /root/.bashrc && \
-    echo '[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"' >> /root/.bashrc
+    bash -lc "source \"$NVM_DIR/nvm.sh\" && nvm install v14.21.3 && nvm use v14.21.3 && npm install -g pnpm@7" && \
+    bash -lc "echo 'export NVM_DIR=\"$NVM_DIR\"' >> \"$HOME/.bashrc\" && \
+              echo '[ -s \"$NVM_DIR/nvm.sh\" ] && \\. \"$NVM_DIR/nvm.sh\"' >> \"$HOME/.bashrc\" && \
+              echo '[ -s \"$NVM_DIR/bash_completion\" ] && \\. \"$NVM_DIR/bash_completion\"' >> \"$HOME/.bashrc\""
 
 # Verify installation of Node.js and compatible pnpm version
 RUN bash -c "source $NVM_DIR/nvm.sh && node -v && nvm current && pnpm -v"
@@ -32,17 +40,20 @@ RUN bash -c "source $NVM_DIR/nvm.sh && node -v && nvm current && pnpm -v"
 # Old Details
 ENV SLEEP_DURATION 5s
 
-COPY build.sh .
-COPY getDynamicVars.sh .
-COPY set_npmrc.sh .
-ADD BP-BASE-SHELL-STEPS /opt/buildpiper/shell-functions/
-RUN chmod +x build.sh set_npmrc.sh getDynamicVars.sh
+COPY --chown=buildpiper:buildpiper build.sh .
+COPY --chown=buildpiper:buildpiper getDynamicVars.sh .
+COPY --chown=buildpiper:buildpiper set_npmrc.sh .
+ADD --chown=buildpiper:buildpiper BP-BASE-SHELL-STEPS /opt/buildpiper/shell-functions/
+COPY --chown=buildpiper:buildpiper jacoco-sonar-nexus.sh .
+RUN chmod +x build.sh set_npmrc.sh getDynamicVars.sh jacoco-sonar-nexus.sh
+
+# Expose bundled JaCoCo CLI path for scripts that prefer a fixed location
+ENV JACOCO_CLI_JAR=/opt/jacoco/org.jacoco.cli-${JACOCO_CLI_VERSION}-nodeps.jar
 
 ENV ENABLE_MAVEN_SILENT_MODE false
 ENV SOURCE_JSON_FILE mavenrepos.json
 ENV VALIDATION_FAILURE_ACTION WARNING 
 ENV ACTIVITY_SUB_TASK_CODE MVN_EXECUTE
-ENV GIT_SSL_FLAG=false
 ENTRYPOINT [ "/usr/local/bin/switch_versions.sh", "./build.sh" ]
 
 CMD ["bash"]
