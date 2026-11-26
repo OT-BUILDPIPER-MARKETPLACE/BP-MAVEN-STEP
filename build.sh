@@ -1,4 +1,3 @@
-
 #!/bin/bash
 
 source /opt/buildpiper/shell-functions/functions.sh
